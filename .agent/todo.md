@@ -54,12 +54,6 @@
 ## Medium Priority
 
 ### User Experience
-- [ ] **Fix README Typos**
-  - "applciation" → "application"
-  - "envrionment" → "environment"  
-  - "Runing" → "Running"
-  - "Shrot" → "Short"
-
 - [ ] **Cross-Reference Documentation**
   - Link between main README and credinit README
   - Consistent examples across documentation
@@ -116,6 +110,9 @@
   - Cleanup commands after process exits
   - Environment setup scripts
   - Logging and monitoring hooks
+  - Allow --pre and --post commands for executing other processes
+  - Allow USR1 for quick restarts of program without pre and post?
+  - Allow USR2 for quick restarts of program with pre and post?
 
 - [ ] **Signal Handling Enhancement**
   - USR1 for credential refresh
@@ -130,17 +127,18 @@
   - Integration with credential rotation services
 
 ### Advanced Features
-- [ ] **Value-Only Mode**
-  - `$(secretinit --value SECRET_ADDRESS)` command
-  - Single credential retrieval
-  - Shell integration support
-  - Scripting convenience
+- [x] **Single value retrieval**
+  - `secretinit --stdout secretinit:....` command
+  - Single credential retrieval no subprocess
+  - Use case for when they one just needs to retrieve one value
 
 - [ ] **Environment File Support**
-  - Load `.env` files with secret addresses
-  - Multiple environment file support
-  - Conditional environment loading
-  - Template processing
+  - Allow loading .env files containing environment variables (load by default)
+  - Allow --no-env-file parameter to disable it
+  - Allow --env-file parameter to define custom path if different
+
+- [ ] **Environment Variable Mappings**
+  - Allow SECRETINIT_MAPPINGS="" or via command with -m --mappings
 
 - [ ] **Credential Validation**
   - Test credential connectivity
@@ -233,21 +231,3 @@
   - Log level configuration
   - Audit logging capabilities
   - Integration with log aggregation systems
-
-## Secretinit CLI Enhancements
-- [ ] **Environment Variable Mappings**
-  - Allow SECRETINIT_MAPPINGS="" or via command with -m --mappings
-  
-- [ ] **Process Management**
-  - Allow --pre and --post commands for executing other processes
-  - Allow USR1 for quick restarts of program without pre and post
-  - Allow USR2 for quick restarts of program with pre and post
-  
-- [ ] **CLI Mode**
-  - CLI mode where instead of process loading one can do $(secretinit --value secretinit:...) to retrieve just that value
-  - For scenarios where you want to use it but it can't be the process starter
-  
-- [ ] **Environment File Support**
-  - Allow loading .env files containing environment variables (load by default)
-  - Allow --no-env-file parameter to disable it
-  - Allow --env-file parameter to define custom path if different

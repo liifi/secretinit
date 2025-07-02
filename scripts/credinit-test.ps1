@@ -11,3 +11,6 @@ $env:M="secretinit:git:https://user@example.com"; credinit.exe -m "M_URL->A_URL,
 
 # Test as secret retriever only
 $env:TOKEN="secretinit:git:https://user@example.com:::password"; credinit.exe pwsh -c "env | grep TOKEN"
+
+# Test as secret value only
+credinit.exe -o git:user@example.com:::password

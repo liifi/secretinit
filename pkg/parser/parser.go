@@ -3,6 +3,7 @@ package parser
 import (
 	"fmt"
 	"net/url"
+	"regexp"
 	"strings"
 )
 
@@ -47,18 +48,20 @@ func ParseSecretString(s string) (SecretSource, error) {
 	case "git":
 		// Git format: git:repo_url[:::key_path]
 		// The 'remaining' string here is the Git URL itself.
-		secretSource.Resource = remaining
 
-		// Validate and normalize the Git URL part of the resource.
+		// Normalize git URLs - handle both full URLs and short forms like user@host
+		normalizedURL := normalizeGitURL(remaining)
+		secretSource.Resource = normalizedURL
+
+		// Validate the normalized URL
 		u, err := url.Parse(secretSource.Resource)
 		if err != nil {
 			return SecretSource{}, fmt.Errorf("invalid Git URL in secret string: %w", err)
 		}
-		// Ensure the URL has a scheme (e.g., https://, ssh://) for validity.
+		// Ensure the URL has a scheme after normalization
 		if u.Scheme == "" {
 			return SecretSource{}, fmt.Errorf("invalid Git URL scheme for resource '%s'", secretSource.Resource)
 		}
-		secretSource.Resource = u.String() // Store the full (parsed and re-stringified) URL
 
 	case "aws", "gcp", "azure":
 		// These backends follow: backend:service:resource[:::key_path]
@@ -67,7 +70,7 @@ func ParseSecretString(s string) (SecretSource, error) {
 		if len(partsAfterBackend) < 2 {
 			return SecretSource{}, fmt.Errorf("invalid %s secret string format: %s. Expected '%s:service:resource'", backend, mainString, backend)
 		}
-		secretSource.Service = partsAfterBackend[0] // e.g., "sm", "ps", "kv"
+		secretSource.Service = partsAfterBackend[0]  // e.g., "sm", "ps", "kv"
 		secretSource.Resource = partsAfterBackend[1] // The rest is the resource
 		// The ":::" delimiter already handled the KeyPath separation, so no further heuristics needed here.
 
@@ -76,4 +79,44 @@ func ParseSecretString(s string) (SecretSource, error) {
 	}
 
 	return secretSource, nil
+}
+
+// normalizeGitURL handles different git URL formats and normalizes them
+// Supports both full URLs (https://user@host/path) and short forms (user@host)
+func normalizeGitURL(rawURL string) string {
+	// If it already has a scheme, return as-is
+	if strings.Contains(rawURL, "://") {
+		return rawURL
+	}
+
+	// Add https:// to URLs without a scheme
+	return "https://" + rawURL
+}
+
+// parseGitURL is a utility function that extracts username from Git URL if present and returns clean URL
+// This is used by credinit --store and other components that need to parse Git URLs
+func parseGitURL(rawURL string) (string, string) {
+	// Regex to match URLs with user@ prefix in both full and short forms
+	// Matches: https://user@host, http://user@host, or user@host
+	userURLRegex := regexp.MustCompile(`^(?:(https?://))?([^@]+)@(.+)$`)
+
+	if matches := userURLRegex.FindStringSubmatch(rawURL); matches != nil {
+		user := matches[2]     // username part
+		hostPath := matches[3] // host and path part (without user)
+
+		// Normalize the clean URL (without user) using existing function
+		// normalizeGitURL will handle adding scheme if needed
+		normalizedURL := normalizeGitURL(hostPath)
+
+		return normalizedURL, user
+	}
+
+	// No user found, just normalize and return
+	return normalizeGitURL(rawURL), ""
+}
+
+// ParseGitURL is a public wrapper for parseGitURL to extract username from Git URL if present and return clean URL
+// This is used by other packages that need to parse Git URLs with user credentials
+func ParseGitURL(rawURL string) (string, string) {
+	return parseGitURL(rawURL)
 }

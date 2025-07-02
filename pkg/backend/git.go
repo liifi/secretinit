@@ -2,25 +2,27 @@ package backend
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/liifi/secretinit/pkg/parser"
 )
 
 // GitBackend implements the Backend interface for the Git credential manager.
 type GitBackend struct{}
 
 // RetrieveSecret retrieves a secret from the Git credential manager.
-// The service parameter is ignored for git backend.
-// The resource string is expected to be a URL, optionally with a username included
-// (e.g., "https://user@github.com" or "https://github.com").
+// The service parameter contains the username extracted by the parser (if any).
+// The resource string is expected to be a normalized URL from the parser
+// (e.g., "https://api.example.com" or "https://example.com").
 // The keyPath should be "username" or "password".
 func (b *GitBackend) RetrieveSecret(service, resource, keyPath string) (string, error) {
-	// Parse the resource string to extract URL and potential user
-	url, user := parseURLForUser(resource)
-
-	username, password, err := getCredential(url, user)
+	// The parser has already extracted the user and normalized the URL
+	// service = username (if any), resource = clean normalized URL
+	username, password, err := getCredential(resource, service)
 	if err != nil {
-		return "", fmt.Errorf("failed to retrieve git credential for %s: %w", url, err)
+		return "", fmt.Errorf("failed to retrieve git credential for %s: %w", resource, err)
 	}
 
 	switch keyPath {
@@ -30,40 +32,6 @@ func (b *GitBackend) RetrieveSecret(service, resource, keyPath string) (string, 
 		return password, nil
 	}
 	return "", fmt.Errorf("invalid key path for git backend: %s. Expected 'username' or 'password'", keyPath)
-}
-
-// parseURLForUser extracts username from URL if present and returns clean URL
-// Only handles simple case of user@host, not complex password scenarios
-func parseURLForUser(rawURL string) (string, string) {
-	if strings.Contains(rawURL, "@") && strings.Contains(rawURL, "://") {
-		// Handle full URLs like https://user@github.com/repo
-		parts := strings.SplitN(rawURL, "://", 2)
-		if len(parts) == 2 {
-			scheme := parts[0]
-			remainder := parts[1]
-
-			if atIndex := strings.Index(remainder, "@"); atIndex != -1 {
-				userPart := remainder[:atIndex]
-				hostPart := remainder[atIndex+1:]
-
-				// Return clean URL without credentials
-				cleanURL := scheme + "://" + hostPart
-				return cleanURL, userPart
-			}
-		}
-	} else if strings.Contains(rawURL, "@") {
-		// Handle simple case: user@host
-		parts := strings.SplitN(rawURL, "@", 2)
-		if len(parts) == 2 {
-			return "https://" + parts[1], parts[0]
-		}
-	}
-	return rawURL, ""
-}
-
-// ParseURLForUser is a public version for use by other packages
-func ParseURLForUser(rawURL string) (string, string) {
-	return parseURLForUser(rawURL)
 }
 
 // getCredential retrieves credentials for a given URL and optional username using git credential fill.
@@ -92,4 +60,93 @@ func getCredential(url, user string) (string, string, error) {
 	}
 
 	return username, password, nil
+}
+
+// StoreCredential stores credentials using git credential helper
+// url: the URL to store credentials for (can include user@ prefix, can be empty to prompt)
+// username: username (optional if already in URL)
+// Returns error if storage fails
+func (b *GitBackend) StoreCredential(url, username string) error {
+	// Prompt for URL if not provided
+	if url == "" {
+		fmt.Print("URL: ")
+		if _, err := fmt.Scanln(&url); err != nil {
+			return fmt.Errorf("error reading URL: %w", err)
+		}
+	}
+
+	// Parse the URL to extract user if present and get clean URL
+	cleanURL, userFromURL := parser.ParseGitURL(url)
+
+	// Use username from parameter or extracted from URL
+	if username == "" {
+		username = userFromURL
+	}
+
+	// If we still don't have a username, prompt for it
+	if username == "" {
+		fmt.Print("Username: ")
+		if _, err := fmt.Scanln(&username); err != nil {
+			return fmt.Errorf("error reading username: %w", err)
+		}
+	}
+
+	// Clear any existing credentials first
+	if err := b.clearCredential(cleanURL, username); err != nil {
+		// Ignore errors - credential might not exist
+	}
+
+	// Get credentials (this will prompt for password if needed)
+	credentials, err := b.promptForCredentials(cleanURL, username)
+	if err != nil {
+		return fmt.Errorf("failed to get credentials: %w", err)
+	}
+
+	// Store the credentials
+	if err := b.approveCredentials(credentials); err != nil {
+		return fmt.Errorf("failed to store credentials: %w", err)
+	}
+
+	return nil
+}
+
+// clearCredential removes existing credentials
+func (b *GitBackend) clearCredential(url, username string) error {
+	input := fmt.Sprintf("url=%s\n", url)
+	if username != "" {
+		input += fmt.Sprintf("username=%s\n", username)
+	}
+	input += "\n"
+
+	cmd := exec.Command("git", "credential", "reject")
+	cmd.Stdin = strings.NewReader(input)
+	cmd.Stderr = os.Stderr
+	return cmd.Run() // Ignore errors
+}
+
+// promptForCredentials prompts for credentials using git credential fill
+func (b *GitBackend) promptForCredentials(url, username string) (string, error) {
+	input := fmt.Sprintf("url=%s\n", url)
+	if username != "" {
+		input += fmt.Sprintf("username=%s\n", username)
+	}
+	input += "\n"
+
+	cmd := exec.Command("git", "credential", "fill")
+	cmd.Stdin = strings.NewReader(input)
+	cmd.Stderr = os.Stderr
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+
+	return string(output), nil
+}
+
+// approveCredentials stores credentials using git credential approve
+func (b *GitBackend) approveCredentials(credentials string) error {
+	cmd := exec.Command("git", "credential", "approve")
+	cmd.Stdin = strings.NewReader(credentials)
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
 }

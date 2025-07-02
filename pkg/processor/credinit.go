@@ -66,7 +66,7 @@ func (p *CredInitProcessor) ProcessCredInitSecrets(secretVars map[string]string)
 
 			// Create the additional environment variables
 			// *_URL gets the clean parsed URL (without username)
-			cleanURL, _ := backend.ParseURLForUser(secretSource.Resource)
+			cleanURL, _ := parser.ParseGitURL(secretSource.Resource)
 			result[prefix+"_URL"] = cleanURL
 			result[prefix+"_USER"] = username
 			result[prefix+"_PASS"] = password

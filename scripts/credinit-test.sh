@@ -10,3 +10,6 @@ M=secretinit:git:https://user@example.com credinit -m "M_URL->A_URL,M_USER->A_US
 
 # Test as secret retriever only
 TOKEN=secretinit:git:https://user@example.com:::password credinit bash -c "env | grep TOKEN"
+
+# Test as secret value only
+credinit -o git:user@example.com:::password

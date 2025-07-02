@@ -3,48 +3,106 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
+	"path/filepath"
 
-	"github.com/liifi/secretinit/pkg/backend"
 	"github.com/liifi/secretinit/pkg/env"
+	executil "github.com/liifi/secretinit/pkg/exec"
 	"github.com/liifi/secretinit/pkg/mappings"
 	"github.com/liifi/secretinit/pkg/processor"
 )
 
-func main() {
-	// Parse mappings and command arguments
-	mappingMap, cmdStart := mappings.ParseMappingsFromArgs(os.Args)
+// Version information set by GoReleaser
+var ( //goreleaser
+	version = "dev"
+)
 
-	if cmdStart >= len(os.Args) {
-		fmt.Fprintf(os.Stderr, "Usage: secretinit [--mappings|-m SOURCE->TARGET,SOURCE2->TARGET2] <command> [args...]\n")
-		fmt.Fprintf(os.Stderr, "Examples:\n")
-		fmt.Fprintf(os.Stderr, "  secretinit myapp --config /etc/myapp/config.yaml\n")
-		fmt.Fprintf(os.Stderr, "  secretinit -m \"DB_USER->DATABASE_USERNAME,DB_PASS->DATABASE_PASSWORD\" myapp\n")
-		fmt.Fprintf(os.Stderr, "\nEnvironment variables with 'secretinit:' prefix will be resolved:\n")
-		fmt.Fprintf(os.Stderr, "  export DB_PASSWORD=\"secretinit:git:https://github.com/myorg/secrets.git:::password\"\n")
-		fmt.Fprintf(os.Stderr, "  export API_KEY=\"secretinit:aws:sm:myapp/api-key\"\n")
+var debugEnabled = os.Getenv("SECRETINIT_LOG_LEVEL") == "DEBUG"
+
+// debugLog prints debug messages to stderr if debugEnabled is true.
+func debugLog(format string, args ...interface{}) {
+	if debugEnabled {
+		fmt.Fprintf(os.Stderr, "[DEBUG] "+format+"\n", args...)
+	}
+}
+
+func main() {
+	binaryName := filepath.Base(os.Args[0])
+
+	// Handle help and version flags first
+	if len(os.Args) <= 1 {
+		showHelp(binaryName)
 		os.Exit(1)
+	}
+
+	for _, arg := range os.Args[1:] {
+		if arg == "-h" || arg == "--help" {
+			showHelp(binaryName)
+			return
+		}
+		if arg == "-v" || arg == "--version" {
+			fmt.Printf("%s version %s\n", binaryName, version)
+			return
+		}
+	}
+
+	// Parse command line arguments for -o/--stdout flag
+	var stdout bool
+	var secretAddress string
+
+	// Parse flags
+	args := os.Args[1:]
+	filteredArgs := []string{}
+
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "-o", "--stdout":
+			stdout = true
+			if i+1 < len(args) {
+				secretAddress = args[i+1]
+				i++ // Skip the next argument as it's the secret address
+			} else {
+				fmt.Fprintf(os.Stderr, "Error: -o/--stdout requires a secret address argument\n")
+				os.Exit(1)
+			}
+		default:
+			filteredArgs = append(filteredArgs, args[i])
+		}
+	}
+
+	if len(filteredArgs) < 1 && !stdout {
+		showHelp(binaryName)
+		os.Exit(1)
+	}
+	// Parse mappings and command arguments from filtered args
+	mappingMap, cmdStart := mappings.ParseMappingsFromArgs(append([]string{os.Args[0]}, filteredArgs...))
+
+	// Adjust cmdStart since we removed the program name
+	if cmdStart > 0 {
+		cmdStart--
+	}
+
+	debugLog("Parsed mappings: %+v, command starts at arg %d", mappingMap, cmdStart)
+
+	// Handle -o/--stdout flag
+	if stdout {
+		value, err := processor.ProcessSingleSecret(secretAddress)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error processing secret: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println(value)
+		return
 	}
 
 	// Scan environment variables for the secretinit: prefix
 	secretEnvVars := env.ScanSecretEnvVars()
 
-	// Create processor and register backends
-	proc := processor.NewSecretProcessor()
-	proc.RegisterBackend("git", &backend.GitBackend{})
-
-	// Register AWS backend
-	awsBackend, err := backend.NewAWSBackend()
+	// Create processor with only needed backends
+	proc, err := processor.NewProcessorForSecrets(secretEnvVars)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: Failed to initialize AWS backend: %v\n", err)
-		fmt.Fprintf(os.Stderr, "AWS Secrets Manager functionality will not be available.\n")
-	} else {
-		proc.RegisterBackend("aws", awsBackend)
+		fmt.Fprintf(os.Stderr, "Error initializing processor: %v\n", err)
+		os.Exit(1)
 	}
-
-	// TODO: Register other backends as they are implemented
-	// proc.RegisterBackend("gcp", &backend.GCPBackend{})
-	// proc.RegisterBackend("azure", &backend.AzureBackend{})
 
 	// Process secrets
 	retrievedSecrets, err := proc.ProcessSecrets(secretEnvVars)
@@ -71,18 +129,32 @@ func main() {
 	// Apply command-line mappings
 	newEnv = mappings.ApplyMappingsToEnv(newEnv, mappingMap)
 
-	// Execute the command
-	cmd := exec.Command(os.Args[cmdStart], os.Args[cmdStart+1:]...)
-	cmd.Env = newEnv
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-
-	if err := cmd.Run(); err != nil {
-		if exitError, ok := err.(*exec.ExitError); ok {
-			os.Exit(exitError.ExitCode())
-		}
-		fmt.Fprintf(os.Stderr, "Error executing command: %v\n", err)
+	// Validate we have a command to execute
+	if cmdStart >= len(filteredArgs) {
+		showHelp(binaryName)
 		os.Exit(1)
 	}
+
+	// Execute the command
+	debugLog("Executing command: %v", filteredArgs[cmdStart:])
+	executil.ExecuteCommandWithDebug(filteredArgs[cmdStart:], newEnv, debugLog)
+}
+
+// showHelp displays the help message for secretinit
+func showHelp(binaryName string) {
+	fmt.Fprintf(os.Stderr, "Usage: %s [-h|--help] [-v|--version] [-o|--stdout SECRET_ADDRESS] [--mappings|-m SOURCE->TARGET,SOURCE2->TARGET2] <command> [args...]\n", binaryName)
+	fmt.Fprintf(os.Stderr, "\nOptions:\n")
+	fmt.Fprintf(os.Stderr, "  -h, --help              Show this help message\n")
+	fmt.Fprintf(os.Stderr, "  -v, --version           Show version information\n")
+	fmt.Fprintf(os.Stderr, "  -o, --stdout ADDRESS    Output a single secret to stdout\n")
+	fmt.Fprintf(os.Stderr, "  -m, --mappings MAP      Environment variable mappings\n")
+	fmt.Fprintf(os.Stderr, "\nExamples:\n")
+	fmt.Fprintf(os.Stderr, "  %s myapp --config /etc/myapp/config.yaml\n", binaryName)
+	fmt.Fprintf(os.Stderr, "  %s -m \"DB_USER->DATABASE_USERNAME,DB_PASS->DATABASE_PASSWORD\" myapp\n", binaryName)
+	fmt.Fprintf(os.Stderr, "  %s -o \"git:https://api.example.com:::password\"\n", binaryName)
+	fmt.Fprintf(os.Stderr, "  %s --stdout \"aws:sm:myapp/api-key:::username\"\n", binaryName)
+	fmt.Fprintf(os.Stderr, "\nNote: The 'secretinit:' prefix is automatically added if not present.\n")
+	fmt.Fprintf(os.Stderr, "Environment variables with 'secretinit:' prefix will be resolved:\n")
+	fmt.Fprintf(os.Stderr, "  export DB_PASSWORD=\"secretinit:git:https://github.com/myorg/secrets.git:::password\"\n")
+	fmt.Fprintf(os.Stderr, "  export API_KEY=\"secretinit:aws:sm:myapp/api-key\"\n")
 }
