@@ -21,12 +21,13 @@ cmd/
 #### Backend Interface
 ```go
 type Backend interface {
-    RetrieveSecret(resource, keyPath string) (string, error)
+    RetrieveSecret(service, resource, keyPath string) (string, error)
 }
 ```
 
 **Rules:**
 - Simple interface with single responsibility
+- Service parameter specifies which service within a backend (e.g., "sm", "ps", "kv")
 - Resource string is backend-specific (URL for git, ARN for AWS, etc.)
 - KeyPath specifies which part of credential to return
 - Error handling is explicit
@@ -232,8 +233,15 @@ if err := cmd.Run(); err != nil {
 ```go
 type AWSBackend struct{}
 
-func (b *AWSBackend) RetrieveSecret(resource, keyPath string) (string, error) {
-    // AWS-specific implementation
+func (b *AWSBackend) RetrieveSecret(service, resource, keyPath string) (string, error) {
+    switch service {
+    case "sm":
+        // AWS Secrets Manager implementation
+    case "ps":
+        // AWS Parameter Store implementation
+    default:
+        return "", fmt.Errorf("unsupported AWS service: %s", service)
+    }
 }
 ```
 
@@ -245,7 +253,7 @@ proc.RegisterBackend("aws", &backend.AWSBackend{})
 3. **Update Parser (if needed)**
 ```go
 case "aws":
-    // AWS-specific parsing logic
+    // AWS-specific parsing logic for backend:service:resource format
 ```
 
 ### Adding Command Line Features

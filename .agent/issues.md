@@ -42,6 +42,28 @@
 - **Issue**: Some error scenarios may not properly propagate exit codes
 - **Status**: Most cases handled, edge cases may exist
 
+### Cloud Backend Authentication
+
+#### AWS Backend
+- **Issue**: AWS SDK credential discovery may be complex for users
+- **Impact**: May require AWS CLI setup or IAM role configuration
+- **Status**: Uses standard AWS SDK credential chain
+
+#### GCP Backend  
+- **Issue**: Application Default Credentials setup may not be obvious
+- **Impact**: May require `gcloud auth application-default login` or service account setup
+- **Status**: Uses standard GCP SDK credential discovery
+
+#### Azure Backend
+- **Issue**: Azure authentication requires CLI login or managed identity
+- **Impact**: May require `az login` or proper Azure identity configuration
+- **Status**: Uses standard Azure SDK credential chain
+
+#### Conditional Backend Loading
+- **Benefit**: Backends only load when needed
+- **Impact**: Authentication errors only occur for backends actually used
+- **Status**: Working as designed - reduces credential configuration requirements
+
 ## Platform-Specific Issues
 
 ### macOS
@@ -139,5 +161,7 @@
 - **Status**: GoReleaser configured but needs CI integration
 
 ### Dependency Management
-- **Issue**: No external dependencies currently, may change with new backends
-- **Status**: Monitor as project grows
+- **Issue**: Now includes cloud SDK dependencies (AWS, GCP, Azure)
+- **Impact**: Larger binary size, potential version conflicts
+- **Status**: Manageable with current Go module system
+- **Benefits**: Conditional loading means only needed backends are initialized

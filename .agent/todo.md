@@ -11,14 +11,14 @@
   - ~~Add region configuration~~ (using AWS SDK default discovery)
   - Support both Secrets Manager (sm) and Parameter Store (ps) services
 
-- [ ] **GCP Secret Manager Backend**
+- [x] **GCP Secret Manager Backend**
   - Implement `GCPBackend` struct
   - Add GCP SDK dependency
   - Support project/secret/version format
   - Handle JSON key extraction
   - Add authentication methods
 
-- [ ] **Azure Key Vault Backend**
+- [x] **Azure Key Vault Backend**
   - Implement `AzureBackend` struct
   - Add Azure SDK dependency
   - Support vault/secret format

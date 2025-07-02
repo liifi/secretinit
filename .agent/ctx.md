@@ -10,7 +10,7 @@
 
 #### `secretinit` (Universal Secret Manager)
 - **Purpose**: Universal secret injection wrapper for any application
-- **Backends**: Supports multiple backends (git, aws, with gcp, azure planned)
+- **Backends**: Supports multiple backends (git, aws, gcp, azure)
 - **Pattern**: `secretinit:backend:service:resource:::keyPath`
 - **Modes**: 
   - Single credential: `export DB_PASS="secretinit:git:https://api.example.com:::password"`
@@ -32,8 +32,8 @@
 
 #### `pkg/backend`
 - **Function**: Backend implementations for secret retrieval
-- **Interface**: `RetrieveSecret(resource, keyPath string) (string, error)`
-- **Implementations**: `GitBackend` (with AWS, GCP, Azure planned)
+- **Interface**: `RetrieveSecret(service, resource, keyPath string) (string, error)`
+- **Implementations**: `GitBackend`, `AWSBackend`, `GCPBackend`, `AzureBackend`
 
 #### `pkg/processor`
 - **Function**: Orchestrates secret processing workflow
@@ -84,7 +84,7 @@ export API="secretinit:git:https://api.example.com"
 export DATABASE="secretinit:git:https://database.example.com"
 ```
 
-#### Future Backend Examples
+#### Cloud Backend Examples
 ```bash
 export DB_PASS="secretinit:aws:sm:myapp/db-creds:::password"
 export API_KEY="secretinit:gcp:sm:myproject/api-key"

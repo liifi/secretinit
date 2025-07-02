@@ -10,14 +10,14 @@ export DB_PASSWORD="secretinit:aws:sm:myapp/db-creds:::password"
 secretinit myapp
 
 # 2. Get a single secret value
-secretinit --stdout "git:https://api.example.com:::password"
+secretinit --stdout "gcp:sm:my-project/api-key"
 
 # 3. Multi-credential expansion + mapping
 export API="secretinit:git:https://api.example.com"
 secretinit -m "DATABASE_USER=API_USER,DATABASE_PASS=API_PASS" myapp
 
 # 4. Use .env file
-echo 'API_TOKEN=secretinit:git:https://api.example.com:::password' > .env
+echo 'API_TOKEN=secretinit:azure:kv:my-vault/api-token' > .env
 secretinit myapp
 ```
 
@@ -43,8 +43,8 @@ secretinit myapp
 backend:service:resource[:::key_path]
 ```
 
-- **backend**: `git`, `aws` (more coming soon)
-- **service**: `sm` (Secrets Manager), `ps` (Parameter Store) for AWS
+- **backend**: `git`, `aws`, `gcp`, `azure`
+- **service**: `sm` (Secrets Manager), `ps` (Parameter Store), `kv` (Key Vault)
 - **resource**: Secret name/path/URL
 - **key_path**: Optional - extract specific field from JSON secrets
 
@@ -55,6 +55,8 @@ backend:service:resource[:::key_path]
 | Git | Any URL | `git:https://api.example.com:::password` |
 | AWS | Secrets Manager | `aws:sm:myapp/db-creds:::password` |
 | AWS | Parameter Store | `aws:ps:/myapp/config:::database.host` |
+| GCP | Secret Manager | `gcp:sm:my-project/api-key` |
+| Azure | Key Vault | `azure:kv:my-vault/app-secret:::username` |
 
 ## Usage Modes
 
@@ -124,7 +126,9 @@ git config --global credential.helper manager  # Recommended for all platforms
 
 1. **Install Git** and configure a credential helper
 2. **For AWS**: Configure AWS credentials (`aws configure` or IAM roles)
-3. **Store some credentials**:
+3. **For GCP**: Set up Application Default Credentials (`gcloud auth application-default login`)
+4. **For Azure**: Configure Azure CLI (`az login`) or use managed identity
+5. **Store some credentials**:
    ```bash
    secretinit --store --url https://api.example.com --user myuser
    ```
