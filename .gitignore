@@ -2,5 +2,3 @@
 
 secretinit
 !cmd/secretinit
-credinit
-!cmd/credinit

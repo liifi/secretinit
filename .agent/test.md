@@ -41,7 +41,7 @@ secretinit:git:https://api.example.com:::password
 secretinit:git:https://user@database.example.com:::username
 secretinit:git:https://service.example.com/api:::token
 
-# Credinit multi-credential mode (no keyPath)
+# Git multi-credential mode (no keyPath)
 secretinit:git:https://api.example.com
 secretinit:git:https://database.example.com
 
@@ -236,11 +236,11 @@ export TEST_SECRET="secretinit:git:https://api.example.com:::password"
 
 # Test secretinit
 echo "Testing secretinit..."
-CREDINIT_LOG_LEVEL=DEBUG ./secretinit echo "Integration test passed"
+SECRETINIT_LOG_LEVEL=DEBUG ./secretinit echo "Integration test passed"
 
-# Test credinit  
-echo "Testing credinit..."
-CREDINIT_LOG_LEVEL=DEBUG ./credinit echo "Integration test passed"
+# Test multi-credential mode  
+echo "Testing multi-credential mode..."
+SECRETINIT_LOG_LEVEL=DEBUG ./secretinit echo "Integration test passed"
 
 # Test with mappings
 echo "Testing with mappings..."
@@ -270,7 +270,7 @@ export API_KEY="secretinit:git:https://example.com/api:::password"
 ./secretinit env | grep API_KEY
 
 # 2. Test credential storage
-./credinit --store --url https://example.com --user testuser
+./secretinit --store --url https://example.com --user testuser
 
 # 3. Test mappings
 export DB_PASS="secretinit:git:https://example.com/db:::password"
@@ -375,7 +375,7 @@ go tool cover -html=coverage.out -o coverage.html
 # Target: >80% coverage for core packages
 ```
 
-## CredInit Testing
+## Git Multi-Credential Testing
 
 ### Multi-Credential Mode Testing
 ```bash

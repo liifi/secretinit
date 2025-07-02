@@ -2,24 +2,21 @@
 
 ## Project Overview
 
-**secretinit** is a credential injection system that enables secure secret management for applications by intercepting environment variables with special prefixes and replacing them with actual secret values retrieved from various backends.
+**secretinit** is a credential injection system that enables secure secret management for applications by intercepting environment variables with special prefixes and replacing them with actual secret values retrieved from various backends. It supports both single credential mode and git multi-credential expansion.
 
 ## Core Components
 
-### 1. Main Tools
+### 1. Main Tool
 
-#### `secretinit` (Main Tool)
+#### `secretinit` (Universal Secret Manager)
 - **Purpose**: Universal secret injection wrapper for any application
-- **Backends**: Supports multiple backends (git, aws, gcp, azure)
+- **Backends**: Supports multiple backends (git, aws, with gcp, azure planned)
 - **Pattern**: `secretinit:backend:service:resource:::keyPath`
-- **Example**: `export DB_PASS="secretinit:git:https://api.example.com:::password"`
+- **Modes**: 
+  - Single credential: `export DB_PASS="secretinit:git:https://api.example.com:::password"`
+  - Multi-credential (git only): `export API="secretinit:git:https://api.example.com"` (creates API_URL, API_USER, API_PASS)
 
-#### `credinit` (General-Purpose Credential Tool)
-- **Purpose**: Universal credential management leveraging Git's credential helper system as general-purpose secure storage for any URL-based service
-- **Backends**: Git credential helpers (leverages OS-native secure storage for any URL, not just Git repositories)
-- **Pattern**: `secretinit:git:url[:::keyPath]`
-- **Modes**: Multi-credential (creates *_URL, *_USER, *_PASS) or single credential (with keyPath)
-- **Example**: `export API_KEY="secretinit:git:https://api.example.com:::password"`
+**Git Multi-Credential Mode**: When no keyPath is specified for git backend, automatically creates multiple environment variables (`*_URL`, `*_USER`, `*_PASS`) using the base variable name as prefix. This leverages Git's credential helper system as general-purpose secure storage for any URL-based service.
 
 ### 2. Package Architecture
 
@@ -41,7 +38,8 @@
 #### `pkg/processor`
 - **Function**: Orchestrates secret processing workflow
 - **Pattern**: Register backends → Process secrets → Return resolved values
-- **Usage**: Both tools use this for consistent processing
+- **Multi-credential Support**: Automatically detects git secrets without keyPath and expands to multiple variables
+- **Usage**: Single unified processor handles both single and multi-credential modes
 
 #### `pkg/mappings`
 - **Function**: Environment variable transformations
@@ -77,16 +75,13 @@ export VAR_NAME="secretinit:backend:service:resource:::keyPath"
 
 #### Git Backend Examples
 ```bash
-# secretinit: Single credential replacement
+# Single credential replacement
 export API_TOKEN="secretinit:git:https://api.example.com:::password"
 export API_USER="secretinit:git:https://api.example.com:::username"
 
-# credinit: Multi-credential mode (creates *_URL, *_USER, *_PASS)
+# Multi-credential mode (creates API_URL, API_USER, API_PASS)
 export API="secretinit:git:https://api.example.com"
 export DATABASE="secretinit:git:https://database.example.com"
-
-# credinit: Single credential mode (with keyPath)
-export TOKEN="secretinit:git:https://api.example.com:::password"
 ```
 
 #### Future Backend Examples
@@ -101,18 +96,17 @@ export CERT="secretinit:azure:kv:myvault/ssl-cert:::certificate"
 #### Basic Usage
 ```bash
 secretinit myapp
-credinit myapp
 ```
 
 #### With Mappings
 ```bash
 secretinit -m "DB_USER->DATABASE_USERNAME" myapp
-credinit --mappings "API_TOKEN->GITHUB_TOKEN" build-script
+secretinit --mappings "API_TOKEN->GITHUB_TOKEN" build-script
 ```
 
-#### Credential Storage (credinit only)
+#### Credential Storage
 ```bash
-credinit --store --url https://example.com --user myuser
+secretinit --store --url https://example.com --user myuser
 ```
 
 ## Security Model
@@ -131,7 +125,7 @@ credinit --store --url https://example.com --user myuser
 ### Error Handling
 - **Fail Fast**: Exit immediately on credential retrieval failures
 - **No Fallbacks**: Don't continue with empty/default credentials
-- **Debugging**: Debug logging available via `CREDINIT_LOG_LEVEL=DEBUG`
+- **Debugging**: Debug logging available via `SECRETINIT_LOG_LEVEL=DEBUG`
 
 ## Extensibility Points
 

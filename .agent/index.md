@@ -1,6 +1,6 @@
 # Documentation Index
 
-This directory contains comprehensive documentation for the secretinit/credinit project.
+This directory contains comprehensive documentation for the secretinit project.
 
 ## Document Types
 

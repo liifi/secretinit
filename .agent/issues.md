@@ -5,7 +5,7 @@
 ### Git Credential Helper Compatibility
 
 #### WSL + Windows Git Credential Manager
-- **Issue**: `credinit` may hang when using Windows Git Credential Manager from WSL
+- **Issue**: `secretinit` may hang when using Windows Git Credential Manager from WSL
 - **Cause**: GUI prompts cannot be displayed in WSL environment
 - **Impact**: Credential storage and retrieval of non-existent credentials
 - **Workaround**: 

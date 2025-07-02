@@ -94,7 +94,7 @@ func normalizeGitURL(rawURL string) string {
 }
 
 // parseGitURL is a utility function that extracts username from Git URL if present and returns clean URL
-// This is used by credinit --store and other components that need to parse Git URLs
+// This is used by secretinit --store and other components that need to parse Git URLs
 func parseGitURL(rawURL string) (string, string) {
 	// Regex to match URLs with user@ prefix in both full and short forms
 	// Matches: https://user@host, http://user@host, or user@host

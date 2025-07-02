@@ -9,12 +9,11 @@ pkg/
 ├── env/          # Environment variable scanning
 ├── parser/       # Secret address parsing  
 ├── backend/      # Backend implementations
-├── processor/    # Secret processing orchestration
+├── processor/    # Secret processing orchestration (unified)
 └── mappings/     # Environment variable transformations
 
 cmd/
-├── secretinit/   # Universal secret injection tool
-└── credinit/     # Git-specific credential manager
+└── secretinit/   # Universal secret injection tool
 ```
 
 ### Interface Design Pattern
@@ -81,7 +80,7 @@ if creds := getCredential(url, user); creds != nil {
 
 #### Conditional Debug Logging
 ```go
-var debugEnabled = os.Getenv("CREDINIT_LOG_LEVEL") == "DEBUG"
+var debugEnabled = os.Getenv("SECRETINIT_LOG_LEVEL") == "DEBUG"
 
 func debugLog(format string, args ...interface{}) {
     if debugEnabled {
@@ -261,16 +260,16 @@ if arg == "--new-flag" {
 2. **Add to Usage Documentation**
 3. **Update Integration Points**
 
-## CredInit Processor
+## Git Multi-Credential Processing
 
 ### Purpose
-The `CredInitProcessor` provides credinit-specific logic that differs from the general `SecretProcessor`:
+The unified processor now handles git multi-credential logic automatically:
 
-### Key Differences
-- **Multi-credential mode**: When no keyPath is specified, creates three environment variables
-- **Git-only**: Only processes git backend secrets 
+### Key Features
+- **Multi-credential mode**: When no keyPath is specified for git backend, creates three environment variables
+- **Auto-detection**: Automatically detects git secrets without keyPath
 - **Variable naming**: Uses exact variable name as prefix (no suffix extraction)
-- **Dual behavior**: Can function like secretinit when keyPath is provided
+- **Dual behavior**: Can function in single credential mode when keyPath is provided
 
 ### Implementation
 ```go

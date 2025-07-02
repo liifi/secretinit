@@ -55,7 +55,7 @@
 
 ### User Experience
 - [ ] **Cross-Reference Documentation**
-  - Link between main README and credinit README
+  - Update documentation for unified secretinit tool
   - Consistent examples across documentation
   - Usage pattern documentation
 

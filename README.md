@@ -2,9 +2,7 @@
 
 **`secretinit`** is a command-line tool designed to streamline how applications access and use secrets like API keys, database credentials, or sensitive configuration values. It provides a consistent way to load these into your application's environment variables.
 
-**Related Tool**: This project also includes [`credinit`](cmd/credinit/README.md), a credential management tool that leverages Git's credential helper system as general-purpose, cross-platform secure storage for any URL-based service. It focuses on URL-based credentials and provides automatic multi-credential loading (creating *_URL, *_USER, and *_PASS variables).
-
-> **Important Note**: The "git" backend in both tools uses Git's credential helper system as **general-purpose credential storage for any URL-based service** - not just Git repositories. This means you can securely store and retrieve credentials for APIs, databases, web services, SaaS platforms, or any other service accessed via URL, using your operating system's native secure storage.
+> **Important Note**: The "git" backend uses Git's credential helper system as **general-purpose credential storage for any URL-based service** - not just Git repositories. This means you can securely store and retrieve credentials for APIs, databases, web services, SaaS platforms, or any other service accessed via URL, using your operating system's native secure storage (Keychain on macOS, Credential Manager on Windows, etc.).
 
 The core idea is to replace sensitive values in your environment (or a configuration file that `secretinit` reads) with a small, readable string that tells `secretinit` where the real secret lives.
 
@@ -54,63 +52,107 @@ This design makes your application code cleaner, more portable, and significantl
 
 -----
 
-## Tools Overview
+## Tool Overview
 
-### `secretinit` - Universal Secret Injection
-The main tool that supports multiple backend types and provides a unified interface for secret injection across different cloud providers and systems.
+**`secretinit`** is a universal secret injection tool that supports multiple backend types and provides a unified interface for secret injection across different cloud providers and systems. It supports both single credential mode and git multi-credential expansion.
 
-**Usage:**
+### Key Features
+
+- **Multiple Backends**: Supports git credential helpers, AWS Secrets Manager, AWS Parameter Store (with more planned)
+- **Git Multi-Credential Mode**: Automatically creates `*_URL`, `*_USER`, and `*_PASS` variables when no keyPath is specified for git backend
+- **Single Credential Mode**: Direct replacement for specific credential components
+- **Environment Variable Mappings**: Transform secret variable names using `-m/--mappings`
+- **Credential Storage**: Store credentials using `--store` for git backend
+
+### Basic Usage
+
 ```bash
-# Basic usage
-export API_KEY="secretinit:git:https://api.example.com:::password"
+# Store credentials for any URL-based service
+secretinit --store --url https://api.example.com --user myuser
+
+# Multi-credential mode: Creates API_URL, API_USER, API_PASS
+export API="secretinit:git:https://api.example.com"
+secretinit myapp
+
+# Single credential mode: Replace with specific value
+export API_TOKEN="secretinit:git:https://api.example.com:::password"
+export DB_PASS="secretinit:aws:sm:myapp/database:::password"
 secretinit myapp
 
 # With environment variable mappings
-secretinit -m "API_KEY->GITHUB_TOKEN,DB_PASS->DATABASE_PASSWORD" myapp
+secretinit -m "API_USER->DATABASE_USERNAME,API_PASS->DATABASE_PASSWORD" myapp
 ```
-
-### `credinit` - General-Purpose Credential Storage
-A specialized tool that leverages Git's credential helper system as universal, cross-platform credential storage for **any URL-based service**. It can store and retrieve credentials for APIs, databases, web services, or any other URL-accessible resource using your operating system's native secure storage (Keychain on macOS, Credential Manager on Windows, etc.). **Note**: Despite using Git's credential system, this is not limited to git repositories.
-
-**Usage:**
-```bash
-# Store credentials for any service
-credinit --store --url https://api.example.com --user myuser
-
-# Multi-credential mode: Creates *_URL, *_USER, and *_PASS variables
-export API=secretinit:git:https://api.example.com
-credinit myapp
-
-# Single credential mode: Replace with specific value
-export API_TOKEN=secretinit:git:https://api.example.com:::password
-credinit myapp
-```
-
-For detailed information about `credinit`, see [cmd/credinit/README.md](cmd/credinit/README.md).
 
 -----
 
 ## Quick Start Examples
 
-### Git Credential Storage (Both Tools)
+### Git Credential Storage
 ```bash
-# Store credentials for any API or service using credinit
-credinit --store --url https://api.example.com --user myuser
-credinit --store --url https://database.company.com --user dbuser
+# Store credentials for any API or service
+secretinit --store --url https://api.example.com --user myuser
+secretinit --store --url https://database.company.com --user dbuser
 
-# secretinit: Single credential replacement
+# Single credential replacement
 export API_TOKEN="secretinit:git:https://api.example.com:::password"
 export DB_USER="secretinit:git:https://database.company.com:::username"
 secretinit curl -H "Authorization: Bearer \$API_TOKEN" https://api.example.com/data
 
-# credinit: Multi-credential mode (creates *_URL, *_USER, *_PASS)
-export API=secretinit:git:https://api.example.com
-export DATABASE=secretinit:git:https://database.company.com
-credinit myapp
+# Multi-credential mode: Creates API_URL, API_USER, API_PASS
+export API="secretinit:git:https://api.example.com"
+export DATABASE="secretinit:git:https://database.company.com"
+secretinit myapp
 
-# credinit: Single credential mode (with keyPath)
-export TOKEN=secretinit:git:https://api.example.com:::password
-credinit myapp
+# Environment variable mappings
+export API="secretinit:git:https://api.example.com"
+secretinit -m "API_USER->DATABASE_USERNAME,API_PASS->DATABASE_PASSWORD" myapp
+```
+
+### Git Credential Helper Configuration
+
+Configure a secure credential helper for your platform:
+
+#### macOS
+```bash
+# Option 1: Git Credential Manager (recommended)
+git config --global credential.helper manager
+
+# Option 2: Use the osxkeychain
+git config --global credential.helper osxkeychain
+```
+
+#### Linux
+```bash
+# Option 1: Git Credential Manager (recommended) 
+git config --global credential.helper manager
+
+# Option 2: Use in memory cache
+git config --global credential.helper 'cache --timeout=<seconds>'
+```
+
+#### Windows
+```bash
+# Option 1: Git Credential Manager (recommended, included in Windows)
+git config --global credential.helper manager
+
+# Option 2: Windows Credential Manager
+git config --global credential.helper wincred
+```
+
+#### WSL
+```bash
+# Use Git Credential Manager from Windows
+git config --global credential.helper /mnt/c/git/install/path/mingw64/bin/git-credential-manager.exe
+
+# IMPORTANT: WSL may cause credinit to hang when using Windows' GCM.
+#            No issue for loading existing credentials, but for non
+#            existent credential or for storing, it must be from GUI.
+#            To allow it to work from WSL, one must run as Administrator
+#            SETX WSLENV "%WSLENV%:GIT_EXEC_PATH/wp"
+#            wsl --shutdown
+#            In wsl git config, do not use 'credential.guiprompt false'
+#            If credinit hangs, it is due to either the config or WSLENV
+#            Ideally only read existing values from WSL.
 ```
 
 ### Cloud Examples
@@ -138,7 +180,7 @@ export DB_HOST="secretinit:aws:sm:myapp/db-config:::database.host"
 secretinit myapp
 ```
 
-### Future Cloud Examples (secretinit only)
+### Future Cloud Examples
 ```bash
 # Google Cloud Secret Manager  
 export API_KEY="secretinit:gcp:sm:myproject/api-key"
@@ -148,3 +190,14 @@ secretinit myapp
 export CERTIFICATE="secretinit:azure:kv:myvault/ssl-cert"
 secretinit myapp
 ```
+
+## Important Notes
+
+- Only environment variables with `secretinit:` prefix are processed for credential loading
+- Regular environment variables without this prefix are ignored for credential processing  
+- **Multi-credential mode**: When no keyPath is specified for git backend, creates three variables (`*_URL`, `*_USER`, `*_PASS`)
+- **Single credential mode**: When keyPath is specified (`:::password` or `:::username`), replaces the variable with the specific value
+- **Credential storage works for any URL-based service** - not limited to Git repositories
+- Credentials are stored directly in Git's credential helper system (no prefix needed for storage)
+- Mappings use arrow syntax: `SOURCE->TARGET,SOURCE2->TARGET2`
+- Configure a secure credential helper before storing credentials
