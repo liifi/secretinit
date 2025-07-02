@@ -15,6 +15,10 @@ secretinit --stdout "git:https://api.example.com:::password"
 # 3. Multi-credential expansion + mapping
 export API="secretinit:git:https://api.example.com"
 secretinit -m "DATABASE_USER=API_USER,DATABASE_PASS=API_PASS" myapp
+
+# 4. Use .env file
+echo 'API_TOKEN=secretinit:git:https://api.example.com:::password' > .env
+secretinit myapp
 ```
 
 ## How It Works
@@ -134,6 +138,26 @@ git config --global credential.helper manager  # Recommended for all platforms
 
 - `SECRETINIT_MAPPINGS`: Set variable mappings (`TARGET=SOURCE,TARGET2=SOURCE2`)
 - `SECRETINIT_LOG_LEVEL`: Set to `DEBUG` for detailed logging
+
+## .env File Support
+
+`secretinit` automatically loads environment variables from a `.env` file in the current directory:
+
+```bash
+# .env file
+API_TOKEN=secretinit:git:https://api.example.com:::password
+DB_USER=secretinit:git:https://db.example.com:::username
+DB_PASS=secretinit:git:https://db.example.com:::password
+
+# Project-specific mappings
+SECRETINIT_MAPPINGS=DATABASE_USERNAME=DB_USER,DATABASE_PASSWORD=DB_PASS
+```
+
+### .env File Options:
+- **Default**: Automatically loads `.env` from current directory
+- **Custom file**: `secretinit -e prod.env myapp`
+- **Disable loading**: `secretinit -n myapp`
+- **Precedence**: `.env file variables` override `system environment variables`
 
 ## Platform-Specific Notes
 

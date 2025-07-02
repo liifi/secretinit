@@ -46,9 +46,11 @@ func main() {
 		}
 	}
 
-	// Parse command line arguments for -o/--stdout flag
+	// Parse command line arguments for various flags
 	var stdout bool
 	var secretAddress string
+	var envFile string
+	var noEnv bool
 
 	// Parse flags
 	args := os.Args[1:]
@@ -65,6 +67,16 @@ func main() {
 				fmt.Fprintf(os.Stderr, "Error: -o/--stdout requires a secret address argument\n")
 				os.Exit(1)
 			}
+		case "-e", "--env-file":
+			if i+1 < len(args) {
+				envFile = args[i+1]
+				i++ // Skip the next argument as it's the file path
+			} else {
+				fmt.Fprintf(os.Stderr, "Error: -e/--env-file requires a file path argument\n")
+				os.Exit(1)
+			}
+		case "-n", "--no-env":
+			noEnv = true
 		case "--store":
 			// Handle store command immediately
 			handleStore()
@@ -77,6 +89,27 @@ func main() {
 	if len(filteredArgs) < 1 && !stdout {
 		showHelp(binaryName)
 		os.Exit(1)
+	}
+
+	// Load .env file early (before mappings parsing)
+	if !noEnv {
+		envFilePath := envFile
+		if envFilePath == "" {
+			envFilePath = ".env" // Default to .env in current directory
+		}
+
+		count, err := env.LoadAndSetEnvFileOverride(envFilePath)
+		if err != nil {
+			// Only show error if a specific file was requested
+			if envFile != "" {
+				fmt.Fprintf(os.Stderr, "Error loading env file %s: %v\n", envFilePath, err)
+				os.Exit(1)
+			}
+			// Default .env file missing is not an error
+			debugLog("No .env file found at %s", envFilePath)
+		} else {
+			debugLog("Loaded %d variables from %s", count, envFilePath)
+		}
 	}
 
 	// Parse mappings and command arguments from filtered args
@@ -165,11 +198,13 @@ func handleStore() {
 
 // showHelp displays the help message for secretinit
 func showHelp(binaryName string) {
-	fmt.Fprintf(os.Stderr, "Usage: %s [-h|--help] [-v|--version] [-o|--stdout SECRET_ADDRESS] [--store --url URL --user USER] [--mappings|-m TARGET=SOURCE,TARGET2=SOURCE2] <command> [args...]\n", binaryName)
+	fmt.Fprintf(os.Stderr, "Usage: %s [-h|--help] [-v|--version] [-o|--stdout SECRET_ADDRESS] [-e|--env-file PATH] [-n|--no-env] [--store --url URL --user USER] [--mappings|-m TARGET=SOURCE,TARGET2=SOURCE2] <command> [args...]\n", binaryName)
 	fmt.Fprintf(os.Stderr, "\nOptions:\n")
 	fmt.Fprintf(os.Stderr, "  -h, --help              Show this help message\n")
 	fmt.Fprintf(os.Stderr, "  -v, --version           Show version information\n")
 	fmt.Fprintf(os.Stderr, "  -o, --stdout ADDRESS    Output a single secret to stdout\n")
+	fmt.Fprintf(os.Stderr, "  -e, --env-file PATH     Load environment variables from custom .env file\n")
+	fmt.Fprintf(os.Stderr, "  -n, --no-env            Disable automatic .env file loading\n")
 	fmt.Fprintf(os.Stderr, "  --store                 Store credentials using git credential helper\n")
 	fmt.Fprintf(os.Stderr, "  --url URL               URL for credential storage\n")
 	fmt.Fprintf(os.Stderr, "  --user USER             Username for credential storage\n")
@@ -190,6 +225,11 @@ func showHelp(binaryName string) {
 	fmt.Fprintf(os.Stderr, "  # Environment variable mappings\n")
 	fmt.Fprintf(os.Stderr, "  %s -m \"DB_USERNAME=MYAPP_USER,DB_PASSWORD=MYAPP_PASS\" myapp arg1\n", binaryName)
 	fmt.Fprintf(os.Stderr, "  SECRETINIT_MAPPINGS=\"DB_USERNAME=MYAPP_USER,DB_PASSWORD=MYAPP_PASS\" %s myapp arg1\n", binaryName)
+	fmt.Fprintf(os.Stderr, "  \n")
+	fmt.Fprintf(os.Stderr, "  # .env file support\n")
+	fmt.Fprintf(os.Stderr, "  %s myapp arg1                          # Loads .env from current directory\n", binaryName)
+	fmt.Fprintf(os.Stderr, "  %s -e prod.env myapp arg1               # Load custom .env file\n", binaryName)
+	fmt.Fprintf(os.Stderr, "  %s -n myapp arg1                        # Disable .env loading\n", binaryName)
 	fmt.Fprintf(os.Stderr, "  \n")
 	fmt.Fprintf(os.Stderr, "  # Output single secret to stdout\n")
 	fmt.Fprintf(os.Stderr, "  %s -o \"git:https://api.example.com:::password\"\n", binaryName)

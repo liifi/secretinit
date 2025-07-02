@@ -126,7 +126,7 @@
   - Single credential retrieval no subprocess
   - Use case for when they one just needs to retrieve one value
 
-- [ ] **Environment File Support**
+- [x] **Environment File Support**
   - Allow loading .env files containing environment variables (load by default)
   - Allow --no-env-file parameter to disable it
   - Allow --env-file parameter to define custom path if different
