@@ -65,6 +65,10 @@ func main() {
 				fmt.Fprintf(os.Stderr, "Error: -o/--stdout requires a secret address argument\n")
 				os.Exit(1)
 			}
+		case "--store":
+			// Handle store command immediately
+			handleStore()
+			return
 		default:
 			filteredArgs = append(filteredArgs, args[i])
 		}
@@ -73,12 +77,6 @@ func main() {
 	if len(filteredArgs) < 1 && !stdout {
 		showHelp(binaryName)
 		os.Exit(1)
-	}
-
-	// Handle credential storage
-	if len(filteredArgs) > 0 && filteredArgs[0] == "--store" {
-		handleStore()
-		return
 	}
 
 	// Parse mappings and command arguments from filtered args
@@ -93,7 +91,7 @@ func main() {
 
 	// Handle -o/--stdout flag
 	if stdout {
-		value, err := processor.ProcessSingleCredInitSecret(secretAddress)
+		value, err := processor.ProcessSingleSecret(secretAddress)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error processing secret: %v\n", err)
 			os.Exit(1)
@@ -105,15 +103,15 @@ func main() {
 	// Scan environment variables for the secretinit: prefix
 	secretEnvVars := env.ScanSecretEnvVars()
 
-	// Filter for git backend only (credinit is git-specific)
-	gitSecrets := processor.FilterByBackend(secretEnvVars, "git")
-	debugLog("Found %d git secrets to process", len(gitSecrets))
+	// Create processor with only needed backends
+	proc, err := processor.NewProcessorForSecrets(secretEnvVars)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error initializing processor: %v\n", err)
+		os.Exit(1)
+	}
 
-	// Create credinit-specific processor
-	credInitProc := processor.NewCredInitProcessor()
-
-	// Process secrets with credinit logic
-	retrievedSecrets, err := credInitProc.ProcessCredInitSecrets(gitSecrets)
+	// Process secrets (git multi-cred expansion will happen automatically for git secrets without keyPath)
+	retrievedSecrets, err := proc.ProcessSecrets(secretEnvVars)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error processing secrets: %v\n", err)
 		os.Exit(1)
@@ -127,11 +125,17 @@ func main() {
 		newEnv = append(newEnv, fmt.Sprintf("%s=%s", key, value))
 	}
 
-	// Apply any specified mappings
-	finalEnv := mappings.ApplyMappingsToEnv(newEnv, mappingMap)
+	// Apply command-line mappings
+	newEnv = mappings.ApplyMappingsToEnv(newEnv, mappingMap)
+
+	// Validate we have a command to execute
+	if cmdStart >= len(filteredArgs) {
+		showHelp(binaryName)
+		os.Exit(1)
+	}
 
 	debugLog("Executing command: %v", filteredArgs[cmdStart:])
-	executil.ExecuteCommandWithDebug(filteredArgs[cmdStart:], finalEnv, debugLog)
+	executil.ExecuteCommandWithDebug(filteredArgs[cmdStart:], newEnv, debugLog)
 }
 
 // handleStore manages the storage of credentials using git credential helper.

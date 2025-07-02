@@ -2,7 +2,6 @@ package processor
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/liifi/secretinit/pkg/backend"
 	"github.com/liifi/secretinit/pkg/parser"
@@ -47,34 +46,45 @@ func (p *SecretProcessor) ProcessSecrets(secretVars map[string]string) (map[stri
 			return nil, fmt.Errorf("unsupported AWS service '%s' for variable '%s'. Supported services: 'sm' (Secrets Manager), 'ps' (Parameter Store)", secretSource.Service, varName)
 		}
 
-		// Determine the keyPath - use "password" as default for git if not specified
-		keyPath := secretSource.KeyPath
-		if secretSource.Backend == "git" && keyPath == "" {
-			keyPath = "password"
-		}
+		// Handle git backend multi-credential expansion when no keyPath is specified
+		if secretSource.Backend == "git" && secretSource.KeyPath == "" {
+			// Multi-credential mode: create _URL, _USER, _PASS variables
+			// Keep original variable unchanged with secretinit: prefix
+			resolvedSecrets[varName] = "secretinit:" + secretAddress
 
-		// Retrieve the secret value from the backend
-		secretValue, err := backend.RetrieveSecret(secretSource.Service, secretSource.Resource, keyPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to retrieve secret for variable '%s' (%s): %w", varName, secretAddress, err)
-		}
+			// Retrieve both username and password
+			username, err := backend.RetrieveSecret(secretSource.Service, secretSource.Resource, "username")
+			if err != nil {
+				return nil, fmt.Errorf("failed to retrieve username for variable '%s' (%s): %w", varName, secretAddress, err)
+			}
 
-		resolvedSecrets[varName] = secretValue
+			password, err := backend.RetrieveSecret(secretSource.Service, secretSource.Resource, "password")
+			if err != nil {
+				return nil, fmt.Errorf("failed to retrieve password for variable '%s' (%s): %w", varName, secretAddress, err)
+			}
+
+			// Create the additional environment variables
+			// *_URL gets the clean parsed URL (without username)
+			cleanURL, _ := parser.ParseGitURL(secretSource.Resource)
+			resolvedSecrets[varName+"_URL"] = cleanURL
+			resolvedSecrets[varName+"_USER"] = username
+			resolvedSecrets[varName+"_PASS"] = password
+		} else {
+			// Single credential mode (existing logic)
+			keyPath := secretSource.KeyPath
+			if secretSource.Backend == "git" && keyPath == "" {
+				keyPath = "password"
+			}
+
+			// Retrieve the secret value from the backend
+			secretValue, err := backend.RetrieveSecret(secretSource.Service, secretSource.Resource, keyPath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to retrieve secret for variable '%s' (%s): %w", varName, secretAddress, err)
+			}
+
+			resolvedSecrets[varName] = secretValue
+		}
 	}
 
 	return resolvedSecrets, nil
-}
-
-// FilterByBackend filters secret variables to only include those for a specific backend
-func FilterByBackend(secretVars map[string]string, backendType string) map[string]string {
-	filtered := make(map[string]string)
-	prefix := backendType + ":"
-
-	for varName, secretAddress := range secretVars {
-		if strings.HasPrefix(secretAddress, prefix) {
-			filtered[varName] = secretAddress
-		}
-	}
-
-	return filtered
 }

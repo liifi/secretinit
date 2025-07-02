@@ -98,28 +98,3 @@ func ProcessSingleSecret(secretAddress string) (string, error) {
 	}
 	return "", fmt.Errorf("secret not found")
 }
-
-// ProcessSingleCredInitSecret is a convenience function for processing a single secret with credinit logic
-func ProcessSingleCredInitSecret(secretAddress string) (string, error) {
-	// Remove secretinit: prefix if present, as the processor expects raw backend format
-	secretAddress = strings.TrimPrefix(secretAddress, "secretinit:")
-
-	secrets := map[string]string{"TEMP_KEY": secretAddress}
-
-	// Filter for git backend only (credinit is git-specific)
-	gitSecrets := FilterByBackend(secrets, "git")
-
-	// Create credinit-specific processor
-	credInitProc := NewCredInitProcessor()
-
-	// Process the single secret with credinit logic
-	retrievedSecrets, err := credInitProc.ProcessCredInitSecrets(gitSecrets)
-	if err != nil {
-		return "", err
-	}
-
-	if value, exists := retrievedSecrets["TEMP_KEY"]; exists {
-		return value, nil
-	}
-	return "", fmt.Errorf("secret not found")
-}
