@@ -43,8 +43,8 @@
 
 #### `pkg/mappings`
 - **Function**: Environment variable transformations
-- **Pattern**: `"SOURCE->TARGET,SOURCE2->TARGET2"`
-- **Example**: `"DB_USER->DATABASE_USERNAME,DB_PASS->DATABASE_PASSWORD"`
+- **Pattern**: `"TARGET=SOURCE,TARGET2=SOURCE2"`
+- **Example**: `"DATABASE_USERNAME=DB_USER,DATABASE_PASSWORD=DB_PASS"`
 
 ### 3. Workflow Patterns
 
@@ -100,8 +100,8 @@ secretinit myapp
 
 #### With Mappings
 ```bash
-secretinit -m "DB_USER->DATABASE_USERNAME" myapp
-secretinit --mappings "API_TOKEN->GITHUB_TOKEN" build-script
+secretinit -m "DATABASE_USERNAME=DB_USER" myapp
+secretinit --mappings "GITHUB_TOKEN=API_TOKEN" build-script
 ```
 
 #### Credential Storage

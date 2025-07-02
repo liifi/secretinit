@@ -2,12 +2,13 @@ package mappings
 
 import (
 	"fmt"
+	"os"
 	"strings"
 )
 
 // ApplyMappings takes a map of environment variables and a mapping string
 // and applies the mappings to the environment map.
-// The mapping string should be in the format "SOURCE->TARGET,SOURCE2->TARGET2".
+// The mapping string should be in the format "TARGET=SOURCE,TARGET2=SOURCE2".
 func ApplyMappings(env map[string]string, mappings string) (map[string]string, error) {
 	if mappings == "" {
 		return env, nil
@@ -22,12 +23,12 @@ func ApplyMappings(env map[string]string, mappings string) (map[string]string, e
 	}
 
 	for _, pair := range mappingPairs {
-		parts := strings.Split(pair, "->")
+		parts := strings.Split(pair, "=")
 		if len(parts) != 2 {
 			return nil, fmt.Errorf("invalid mapping format: %s", pair)
 		}
-		source := strings.TrimSpace(parts[0])
-		target := strings.TrimSpace(parts[1])
+		target := strings.TrimSpace(parts[0])
+		source := strings.TrimSpace(parts[1])
 		// Apply mapping: if source exists, set target to source's value
 		if value, ok := appliedEnv[source]; ok {
 			appliedEnv[target] = value
@@ -37,18 +38,25 @@ func ApplyMappings(env map[string]string, mappings string) (map[string]string, e
 }
 
 // ParseMappingsFromArgs parses --mappings or -m flags from command line arguments
+// and also checks the SECRETINIT_MAPPINGS environment variable.
 // Returns the parsed mappings map and the index where the actual command starts
 func ParseMappingsFromArgs(args []string) (map[string]string, int) {
 	mappings := make(map[string]string)
 	cmdStart := 1 // Default: command starts after the binary name
 
+	// First, check for SECRETINIT_MAPPINGS environment variable
+	if envMappings := os.Getenv("SECRETINIT_MAPPINGS"); envMappings != "" {
+		ParseMappingString(envMappings, mappings)
+	}
+
+	// Then parse command line arguments (these override environment variable)
 	for i := 1; i < len(args); i++ {
 		arg := args[i]
 		if arg == "--mappings" || arg == "-m" {
 			if i+1 < len(args) {
 				ParseMappingString(args[i+1], mappings)
-				i++                 // Skip the mapping value
-				cmdStart = i + 1    // Command starts after this
+				i++              // Skip the mapping value
+				cmdStart = i + 1 // Command starts after this
 			}
 		} else {
 			// First non-mapping argument is the start of the command
@@ -60,7 +68,7 @@ func ParseMappingsFromArgs(args []string) (map[string]string, int) {
 	return mappings, cmdStart
 }
 
-// ParseMappingString parses a comma-separated string of SOURCE->TARGET mappings
+// ParseMappingString parses a comma-separated string of TARGET=SOURCE mappings
 func ParseMappingString(mappingStr string, mappings map[string]string) {
 	if mappingStr == "" {
 		return
@@ -68,11 +76,11 @@ func ParseMappingString(mappingStr string, mappings map[string]string) {
 
 	pairs := strings.Split(mappingStr, ",")
 	for _, pair := range pairs {
-		parts := strings.Split(pair, "->")
+		parts := strings.Split(pair, "=")
 		if len(parts) == 2 {
-			source := strings.TrimSpace(parts[0])
-			target := strings.TrimSpace(parts[1])
-			mappings[source] = target
+			target := strings.TrimSpace(parts[0])
+			source := strings.TrimSpace(parts[1])
+			mappings[target] = source
 		}
 	}
 }
@@ -84,7 +92,7 @@ func ApplyMappingsToEnv(env []string, mappings map[string]string) []string {
 	}
 
 	envMap := make(map[string]string)
-	
+
 	// Convert slice to map
 	for _, envVar := range env {
 		if parts := strings.SplitN(envVar, "=", 2); len(parts) == 2 {
@@ -93,7 +101,7 @@ func ApplyMappingsToEnv(env []string, mappings map[string]string) []string {
 	}
 
 	// Apply mappings
-	for source, target := range mappings {
+	for target, source := range mappings {
 		if value, exists := envMap[source]; exists {
 			envMap[target] = value
 		}

@@ -79,8 +79,11 @@ export API_TOKEN="secretinit:git:https://api.example.com:::password"
 export DB_PASS="secretinit:aws:sm:myapp/database:::password"
 secretinit myapp
 
-# With environment variable mappings
-secretinit -m "API_USER->DATABASE_USERNAME,API_PASS->DATABASE_PASSWORD" myapp
+# With environment variable mappings (via command line)
+secretinit -m "DATABASE_USERNAME=API_USER,DATABASE_PASSWORD=API_PASS" myapp
+
+# With environment variable mappings (via environment variable)
+SECRETINIT_MAPPINGS="DATABASE_USERNAME=API_USER,DATABASE_PASSWORD=API_PASS" secretinit myapp
 ```
 
 -----
@@ -103,9 +106,13 @@ export API="secretinit:git:https://api.example.com"
 export DATABASE="secretinit:git:https://database.company.com"
 secretinit myapp
 
-# Environment variable mappings
+# Environment variable mappings (via command line)
 export API="secretinit:git:https://api.example.com"
-secretinit -m "API_USER->DATABASE_USERNAME,API_PASS->DATABASE_PASSWORD" myapp
+secretinit -m "DATABASE_USERNAME=API_USER,DATABASE_PASSWORD=API_PASS" myapp
+
+# Environment variable mappings (via environment variable)
+export API="secretinit:git:https://api.example.com"
+SECRETINIT_MAPPINGS="DATABASE_USERNAME=API_USER,DATABASE_PASSWORD=API_PASS" secretinit myapp
 ```
 
 ### Git Credential Helper Configuration
@@ -191,6 +198,28 @@ export CERTIFICATE="secretinit:azure:kv:myvault/ssl-cert"
 secretinit myapp
 ```
 
+## Configuration
+
+### Environment Variables
+
+**`secretinit`** supports configuration through environment variables:
+
+- **`SECRETINIT_MAPPINGS`**: Set environment variable mappings (same format as `-m/--mappings`)
+- **`SECRETINIT_LOG_LEVEL`**: Set to `DEBUG` for detailed logging output
+
+```bash
+# Using environment variable for mappings
+SECRETINIT_MAPPINGS="DATABASE_USERNAME=API_USER,DATABASE_PASSWORD=API_PASS" secretinit myapp
+
+# Enable debug logging
+SECRETINIT_LOG_LEVEL=DEBUG secretinit myapp
+
+# Combine both
+SECRETINIT_MAPPINGS="DATABASE_USERNAME=API_USER" SECRETINIT_LOG_LEVEL=DEBUG secretinit myapp
+```
+
+**Mapping Priority**: Command line mappings (`-m/--mappings`) override environment variable mappings (`SECRETINIT_MAPPINGS`), allowing you to set defaults via environment variables and override specific mappings as needed.
+
 ## Important Notes
 
 - Only environment variables with `secretinit:` prefix are processed for credential loading
@@ -199,5 +228,5 @@ secretinit myapp
 - **Single credential mode**: When keyPath is specified (`:::password` or `:::username`), replaces the variable with the specific value
 - **Credential storage works for any URL-based service** - not limited to Git repositories
 - Credentials are stored directly in Git's credential helper system (no prefix needed for storage)
-- Mappings use arrow syntax: `SOURCE->TARGET,SOURCE2->TARGET2`
+- Mappings use equals syntax: `TARGET=SOURCE,TARGET2=SOURCE2`
 - Configure a secure credential helper before storing credentials

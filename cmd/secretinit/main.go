@@ -165,7 +165,7 @@ func handleStore() {
 
 // showHelp displays the help message for secretinit
 func showHelp(binaryName string) {
-	fmt.Fprintf(os.Stderr, "Usage: %s [-h|--help] [-v|--version] [-o|--stdout SECRET_ADDRESS] [--store --url URL --user USER] [--mappings|-m SOURCE->TARGET,SOURCE2->TARGET2] <command> [args...]\n", binaryName)
+	fmt.Fprintf(os.Stderr, "Usage: %s [-h|--help] [-v|--version] [-o|--stdout SECRET_ADDRESS] [--store --url URL --user USER] [--mappings|-m TARGET=SOURCE,TARGET2=SOURCE2] <command> [args...]\n", binaryName)
 	fmt.Fprintf(os.Stderr, "\nOptions:\n")
 	fmt.Fprintf(os.Stderr, "  -h, --help              Show this help message\n")
 	fmt.Fprintf(os.Stderr, "  -v, --version           Show version information\n")
@@ -174,6 +174,9 @@ func showHelp(binaryName string) {
 	fmt.Fprintf(os.Stderr, "  --url URL               URL for credential storage\n")
 	fmt.Fprintf(os.Stderr, "  --user USER             Username for credential storage\n")
 	fmt.Fprintf(os.Stderr, "  -m, --mappings MAP      Environment variable mappings\n")
+	fmt.Fprintf(os.Stderr, "\nEnvironment Variables:\n")
+	fmt.Fprintf(os.Stderr, "  SECRETINIT_MAPPINGS     Environment variable mappings (same format as -m)\n")
+	fmt.Fprintf(os.Stderr, "  SECRETINIT_LOG_LEVEL    Set to DEBUG for detailed logging\n")
 	fmt.Fprintf(os.Stderr, "\nExamples:\n")
 	fmt.Fprintf(os.Stderr, "  %s --store --url https://api.example.com --user myuser\n", binaryName)
 	fmt.Fprintf(os.Stderr, "  \n")
@@ -185,7 +188,8 @@ func showHelp(binaryName string) {
 	fmt.Fprintf(os.Stderr, "  DB_PASS=secretinit:aws:sm:myapp/database:::password %s myapp arg1\n", binaryName)
 	fmt.Fprintf(os.Stderr, "  \n")
 	fmt.Fprintf(os.Stderr, "  # Environment variable mappings\n")
-	fmt.Fprintf(os.Stderr, "  %s -m \"MYAPP_USER->DB_USERNAME,MYAPP_PASS->DB_PASSWORD\" myapp arg1\n", binaryName)
+	fmt.Fprintf(os.Stderr, "  %s -m \"DB_USERNAME=MYAPP_USER,DB_PASSWORD=MYAPP_PASS\" myapp arg1\n", binaryName)
+	fmt.Fprintf(os.Stderr, "  SECRETINIT_MAPPINGS=\"DB_USERNAME=MYAPP_USER,DB_PASSWORD=MYAPP_PASS\" %s myapp arg1\n", binaryName)
 	fmt.Fprintf(os.Stderr, "  \n")
 	fmt.Fprintf(os.Stderr, "  # Output single secret to stdout\n")
 	fmt.Fprintf(os.Stderr, "  %s -o \"git:https://api.example.com:::password\"\n", binaryName)

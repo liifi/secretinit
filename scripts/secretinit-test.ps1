@@ -6,8 +6,11 @@ if ($answer -eq "y" -or $answer -eq "Y") {
     Write-Host "Credential storage skipped."
 }
 
-# Test as credential loader with mappings
-$env:M="secretinit:git:https://user@example.com"; secretinit.exe -m "M_URL->A_URL,M_USER->A_USER,M_PASS->A_PASS" pwsh -c "env | grep -i a_"
+# Test as credential loader with mappings (command line)
+$env:M="secretinit:git:https://user@example.com"; secretinit.exe -m "A_URL=M_URL,A_USER=M_USER,A_PASS=M_PASS" pwsh -c "env | grep -i a_"
+
+# Test as credential loader with mappings (environment variable)
+$env:M="secretinit:git:https://user@example.com"; $env:SECRETINIT_MAPPINGS="A_URL=M_URL,A_USER=M_USER,A_PASS=M_PASS"; secretinit.exe pwsh -c "env | grep -i a_"
 
 # Test as secret retriever only
 $env:TOKEN="secretinit:git:https://user@example.com:::password"; secretinit.exe pwsh -c "env | grep TOKEN"

@@ -5,8 +5,11 @@ case "$yn" in
     * ) echo "Skipping credential store.";;
 esac
 
-# Test as credential loader with mappings
-M=secretinit:git:https://user@example.com secretinit -m "M_URL->A_URL,M_USER->A_USER,M_PASS->A_PASS" bash -c "env | grep -i a_"
+# Test as credential loader with mappings (command line)
+M=secretinit:git:https://user@example.com secretinit -m "A_URL=M_URL,A_USER=M_USER,A_PASS=M_PASS" bash -c "env | grep -i a_"
+
+# Test as credential loader with mappings (environment variable)
+M=secretinit:git:https://user@example.com SECRETINIT_MAPPINGS="A_URL=M_URL,A_USER=M_USER,A_PASS=M_PASS" secretinit bash -c "env | grep -i a_"
 
 # Test as secret retriever only
 TOKEN=secretinit:git:https://user@example.com:::password secretinit bash -c "env | grep TOKEN"

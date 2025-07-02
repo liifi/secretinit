@@ -212,7 +212,7 @@ func TestApplyMappings(t *testing.T) {
                 "DB_USER": "admin",
                 "DB_PASS": "secret",
             },
-            mappings: "DB_USER->DATABASE_USERNAME,DB_PASS->DATABASE_PASSWORD",
+            mappings: "DATABASE_USERNAME=DB_USER,DATABASE_PASSWORD=DB_PASS",
             expected: map[string]string{
                 "DB_USER":           "admin",
                 "DB_PASS":           "secret", 
@@ -244,7 +244,7 @@ SECRETINIT_LOG_LEVEL=DEBUG ./secretinit echo "Integration test passed"
 
 # Test with mappings
 echo "Testing with mappings..."
-./secretinit -m "TEST_SECRET->API_TOKEN" env | grep API_TOKEN
+./secretinit -m "API_TOKEN=TEST_SECRET" env | grep API_TOKEN
 ```
 
 ### Git Credential Helper Testing
@@ -274,7 +274,7 @@ export API_KEY="secretinit:git:https://example.com/api:::password"
 
 # 3. Test mappings
 export DB_PASS="secretinit:git:https://example.com/db:::password"
-./secretinit -m "DB_PASS->DATABASE_PASSWORD" env | grep DATABASE_PASSWORD
+./secretinit -m "DATABASE_PASSWORD=DB_PASS" env | grep DATABASE_PASSWORD
 ```
 
 ### Error Scenarios
@@ -288,7 +288,7 @@ export INVALID_SECRET="secretinit:invalid:format"
 ./secretinit echo "Should fail"
 
 # 3. Test invalid mappings
-./secretinit -m "INVALID->MAPPING->FORMAT" echo "Should fail"
+./secretinit -m "INVALID=MAPPING=FORMAT" echo "Should fail"
 ```
 
 ### Cross-Platform Testing
@@ -387,7 +387,7 @@ export TEST_SECRET="secretinit:git:https://api.example.com:::password"
 ### Expected Behavior
 - **No keyPath**: Creates PREFIX_URL, PREFIX_USER, PREFIX_PASS variables (using exact variable name as prefix)
 - **With keyPath**: Replaces variable with specific credential value
-- **Variable naming**: MYAPP -> MYAPP_URL, MYAPP_USER, MYAPP_PASS
+- **Variable naming**: MYAPP expands into MYAPP_URL, MYAPP_USER, MYAPP_PASS
 
 ### Test Cases
 ```go

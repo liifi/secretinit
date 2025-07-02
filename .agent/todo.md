@@ -45,12 +45,6 @@
   - Command-specific help
   - Error message improvements
 
-- [ ] **Configuration File Support**
-  - YAML/JSON config files
-  - Environment variable mappings in config
-  - Default backend configurations
-  - Profile support (dev/staging/prod)
-
 ## Medium Priority
 
 ### User Experience
@@ -137,7 +131,7 @@
   - Allow --no-env-file parameter to disable it
   - Allow --env-file parameter to define custom path if different
 
-- [ ] **Environment Variable Mappings**
+- [x] **Environment Variable Mappings**
   - Allow SECRETINIT_MAPPINGS="" or via command with -m --mappings
 
 - [ ] **Credential Validation**
