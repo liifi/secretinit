@@ -17,12 +17,33 @@ var ( //goreleaser
 	version = "dev"
 )
 
-var debugEnabled = os.Getenv("SECRETINIT_LOG_LEVEL") == "DEBUG"
+var logLevel = getLogLevel()
 
-// debugLog prints debug messages to stderr if debugEnabled is true.
+func getLogLevel() string {
+	level := os.Getenv("SECRETINIT_LOG_LEVEL")
+	switch level {
+	case "DEBUG":
+		return "DEBUG"
+	case "INFO":
+		return "INFO"
+	case "WARN":
+		return "WARN"
+	default:
+		return "WARN" // Default level
+	}
+}
+
+// debugLog prints debug messages to stderr if debug level is enabled.
 func debugLog(format string, args ...interface{}) {
-	if debugEnabled {
+	if logLevel == "DEBUG" {
 		fmt.Fprintf(os.Stderr, "[DEBUG] "+format+"\n", args...)
+	}
+}
+
+// infoLog prints info messages to stderr if info level or higher is enabled.
+func infoLog(format string, args ...interface{}) {
+	if logLevel == "INFO" || logLevel == "DEBUG" {
+		fmt.Fprintf(os.Stderr, format+"\n", args...)
 	}
 }
 
@@ -51,6 +72,8 @@ func main() {
 	var secretAddress string
 	var envFile string
 	var noEnv bool
+	var preCommand string
+	var postCommand string
 
 	// Parse flags
 	args := os.Args[1:]
@@ -77,6 +100,22 @@ func main() {
 			}
 		case "-n", "--no-env":
 			noEnv = true
+		case "--pre":
+			if i+1 < len(args) {
+				preCommand = args[i+1]
+				i++ // Skip the next argument as it's the command
+			} else {
+				fmt.Fprintf(os.Stderr, "Error: --pre requires a command argument\n")
+				os.Exit(1)
+			}
+		case "--post":
+			if i+1 < len(args) {
+				postCommand = args[i+1]
+				i++ // Skip the next argument as it's the command
+			} else {
+				fmt.Fprintf(os.Stderr, "Error: --post requires a command argument\n")
+				os.Exit(1)
+			}
 		case "--store":
 			// Handle store command immediately
 			handleStore()
@@ -167,9 +206,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Execute the command
+	// Execute the command with pre/post hooks
 	debugLog("Executing command: %v", filteredArgs[cmdStart:])
-	executil.ExecuteCommandWithDebug(filteredArgs[cmdStart:], newEnv, debugLog)
+	executil.ExecuteCommandWithHooks(filteredArgs[cmdStart:], newEnv, preCommand, postCommand, debugLog, infoLog)
 }
 
 // handleStore manages the storage of credentials using git credential helper.
@@ -209,6 +248,8 @@ func showHelp(binaryName string) {
 	fmt.Fprintf(os.Stderr, "  --url URL               URL for credential storage\n")
 	fmt.Fprintf(os.Stderr, "  --user USER             Username for credential storage\n")
 	fmt.Fprintf(os.Stderr, "  -m, --mappings MAP      Environment variable mappings\n")
+	fmt.Fprintf(os.Stderr, "  --pre COMMAND           Execute command before main process\n")
+	fmt.Fprintf(os.Stderr, "  --post COMMAND          Execute command after main process (always runs)\n")
 	fmt.Fprintf(os.Stderr, "\nEnvironment Variables:\n")
 	fmt.Fprintf(os.Stderr, "  SECRETINIT_MAPPINGS     Environment variable mappings (same format as -m)\n")
 	fmt.Fprintf(os.Stderr, "  SECRETINIT_LOG_LEVEL    Set to DEBUG for detailed logging\n")
@@ -241,6 +282,11 @@ func showHelp(binaryName string) {
 	fmt.Fprintf(os.Stderr, "  \n")
 	fmt.Fprintf(os.Stderr, "  # Debug mode\n")
 	fmt.Fprintf(os.Stderr, "  SECRETINIT_LOG_LEVEL=DEBUG %s myapp arg1\n", binaryName)
+	fmt.Fprintf(os.Stderr, "  \n")
+	fmt.Fprintf(os.Stderr, "  # Pre/post command hooks\n")
+	fmt.Fprintf(os.Stderr, "  %s --pre \"echo Starting\" --post \"echo Finished\" myapp arg1\n", binaryName)
+	fmt.Fprintf(os.Stderr, "  %s --pre \"docker start database\" --post \"docker stop database\" test-suite\n", binaryName)
+	fmt.Fprintf(os.Stderr, "  %s --post \"cleanup.sh\" build-script\n", binaryName)
 	fmt.Fprintf(os.Stderr, "\nSupported Backends:\n")
 	fmt.Fprintf(os.Stderr, "  git              Git credential helper (supports multi-credential mode)\n")
 	fmt.Fprintf(os.Stderr, "  aws:sm           AWS Secrets Manager\n")

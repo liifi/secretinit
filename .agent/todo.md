@@ -101,8 +101,15 @@
   - Rate limiting for backends
   - Connection pooling
 
+- [ ] **Separate Backend-Focused Builds of secretinit**
+  - Provide alternate builds targeting individual backends (AWS, GCP, Azure, etc.)
+  - Enable users to select a slimmer binary with only required backend support
+  - Reduce binary size and attack surface for enhanced security
+  - Document build options and usage scenarios
+  - Automate backend-specific build process in CI/CD
+
 ### Feature Extensions
-- [ ] **Pre/Post Command Hooks**
+- [x] **Pre/Post Command Hooks**
   - Execute commands before main process
   - Cleanup commands after process exits
   - Environment setup scripts
@@ -112,10 +119,12 @@
   - Allow USR2 for quick restarts of program with pre and post?
 
 - [ ] **Signal Handling Enhancement**
-  - USR1 for credential refresh
-  - USR2 for configuration reload
+  - USR1 for credential refresh with sigterm on child process
+  - USR2 for credential refresh with sigkill on child process
   - Graceful shutdown handling
   - Child process signal forwarding
+  - Triggers credential reloading (without cache)
+  - After terminating main process --post runs.... then --pre runs (if they were present on startup)
 
 - [ ] **Credential Rotation**
   - Automatic credential refresh
