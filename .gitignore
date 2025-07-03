@@ -1,4 +1,5 @@
 *.paktxt
-
+dist
+bin
 secretinit
 !cmd/secretinit
