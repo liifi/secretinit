@@ -140,8 +140,8 @@ Get one secret value to stdout:
 # Get password for scripting
 PASSWORD=$(secretinit --stdout "aws:sm:myapp/db:::password")
 
-# Use in command substitution
-curl -u "user:$(secretinit -o git:https://api.example.com:::password)" https://api.example.com
+# Git backend defaults to password when no key_path specified
+curl -u "user:$(secretinit -o git:https://api.example.com)" https://api.example.com
 ```
 
 ### 3. Environment Variable Mappings

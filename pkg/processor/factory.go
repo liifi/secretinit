@@ -3,6 +3,8 @@ package processor
 import (
 	"fmt"
 	"strings"
+
+	"github.com/liifi/secretinit/pkg/parser"
 )
 
 // NewProcessorForSecrets creates a processor with only the backends needed for the given secrets
@@ -74,6 +76,17 @@ func ScanForRequiredBackends(secrets map[string]string) []string {
 func ProcessSingleSecret(secretAddress string) (string, error) {
 	// Remove secretinit: prefix if present, as the processor expects raw backend format
 	secretAddress = strings.TrimPrefix(secretAddress, "secretinit:")
+
+	// Special case: For git backend without keyPath in stdout mode, default to password
+	// This improves user experience as users typically want the password when using --stdout
+	parsed, err := parser.ParseSecretString(secretAddress)
+	if err != nil {
+		return "", err
+	}
+
+	if parsed.Backend == "git" && parsed.KeyPath == "" {
+		secretAddress += ":::password"
+	}
 
 	secrets := map[string]string{"TEMP_KEY": secretAddress}
 	proc, err := NewProcessorForSecrets(secrets)
