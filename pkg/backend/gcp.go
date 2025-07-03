@@ -45,10 +45,24 @@ func (b *GCPBackend) RetrieveSecret(service, resource, keyPath string) (string, 
 
 // retrieveFromSecretManager retrieves a secret from GCP Secret Manager.
 func (b *GCPBackend) retrieveFromSecretManager(resource, keyPath string) (string, error) {
-	ctx := context.Background()
-
 	// Normalize the resource name to full path format
 	secretName := b.normalizeSecretName(resource)
+
+	// Create cache key without keyPath
+	cacheKey := fmt.Sprintf("gcp:sm:%s", secretName)
+
+	// Check cache first
+	cache := GetGlobalCache()
+	if cached, exists := cache.Get(cacheKey); exists {
+		// Parse keyPath from cached raw secret value
+		if keyPath == "" {
+			return cached, nil
+		}
+		return extractJSONKey(cached, keyPath)
+	}
+
+	// Cache miss - retrieve from GCP Secret Manager
+	ctx := context.Background()
 
 	req := &secretmanagerpb.AccessSecretVersionRequest{
 		Name: secretName,
@@ -63,14 +77,15 @@ func (b *GCPBackend) retrieveFromSecretManager(resource, keyPath string) (string
 		return "", fmt.Errorf("no secret value found for resource '%s'", resource)
 	}
 
+	// Store raw secret value in cache
 	secretValue := string(result.Payload.Data)
+	cache.Set(cacheKey, secretValue)
 
-	// If no keyPath is specified, return the raw secret value
+	// Parse keyPath from the raw secret value
 	if keyPath == "" {
 		return secretValue, nil
 	}
 
-	// Try to parse as JSON and extract the specified key
 	return extractJSONKey(secretValue, keyPath)
 }
 

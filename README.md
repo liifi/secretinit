@@ -12,7 +12,7 @@ secretinit myapp
 # 2. Get a single secret value
 secretinit --stdout "gcp:sm:my-project/api-key"
 
-# 3. Multi-credential expansion + mapping
+# 3. Multi-credential expansion + mapping (git store can be used for any URL)
 export API="secretinit:git:https://api.example.com"
 secretinit -m "DATABASE_USER=API_USER,DATABASE_PASS=API_PASS" myapp
 

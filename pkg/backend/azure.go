@@ -38,13 +38,32 @@ func (b *AzureBackend) RetrieveSecret(service, resource, keyPath string) (string
 
 // retrieveFromKeyVault retrieves a secret from Azure Key Vault.
 func (b *AzureBackend) retrieveFromKeyVault(resource, keyPath string) (string, error) {
-	ctx := context.Background()
-
 	// Parse the resource to extract vault name, secret name, and optional version
 	vaultName, secretName, version, err := b.parseKeyVaultResource(resource)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse Key Vault resource '%s': %w", resource, err)
 	}
+
+	// Create cache key without keyPath (include version if specified)
+	var cacheKey string
+	if version != "" {
+		cacheKey = fmt.Sprintf("azure:kv:%s/%s/%s", vaultName, secretName, version)
+	} else {
+		cacheKey = fmt.Sprintf("azure:kv:%s/%s", vaultName, secretName)
+	}
+
+	// Check cache first
+	cache := GetGlobalCache()
+	if cached, exists := cache.Get(cacheKey); exists {
+		// Parse keyPath from cached raw secret value
+		if keyPath == "" {
+			return cached, nil
+		}
+		return extractJSONKey(cached, keyPath)
+	}
+
+	// Cache miss - retrieve from Azure Key Vault
+	ctx := context.Background()
 
 	// Get or create client for this vault
 	client, err := b.getKeyVaultClient(vaultName)
@@ -68,14 +87,15 @@ func (b *AzureBackend) retrieveFromKeyVault(resource, keyPath string) (string, e
 		return "", fmt.Errorf("no secret value found for '%s' in vault '%s'", secretName, vaultName)
 	}
 
+	// Store raw secret value in cache
 	secretValue := *response.Value
+	cache.Set(cacheKey, secretValue)
 
-	// If no keyPath is specified, return the raw secret value
+	// Parse keyPath from the raw secret value
 	if keyPath == "" {
 		return secretValue, nil
 	}
 
-	// Try to parse as JSON and extract the specified key
 	return extractJSONKey(secretValue, keyPath)
 }
 

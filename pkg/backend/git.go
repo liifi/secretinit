@@ -13,29 +13,88 @@ import (
 type GitBackend struct{}
 
 // RetrieveSecret retrieves a secret from the Git credential manager.
-// The service parameter contains the username extracted by the parser (if any).
-// The resource string is expected to be a normalized URL from the parser
-// (e.g., "https://api.example.com" or "https://example.com").
+// The service parameter is empty for git (git doesn't have services).
+// The resource string may contain username (e.g., "https://user@example.com").
 // The keyPath should be "username" or "password".
 func (b *GitBackend) RetrieveSecret(service, resource, keyPath string) (string, error) {
-	// The parser has already extracted the user and normalized the URL
-	// service = username (if any), resource = clean normalized URL
-	username, password, err := getCredential(resource, service)
-	if err != nil {
-		return "", fmt.Errorf("failed to retrieve git credential for %s: %w", resource, err)
+	cache := GetGlobalCache()
+	// Create cache key for the credential (without keyPath since we cache the full credential)
+	cacheKey := fmt.Sprintf("git:%s:%s", service, resource)
+
+	if os.Getenv("SECRETINIT_LOG_LEVEL") == "DEBUG" {
+		fmt.Fprintf(os.Stderr, "[DEBUG] Git backend: resource=%s, keyPath=%s\n", resource, keyPath)
 	}
 
-	switch keyPath {
-	case "username":
-		return username, nil
-	case "password":
-		return password, nil
+	// Check if we have cached the raw git credential response
+	var rawCredentialResponse string
+	var err error
+	if cached, exists := cache.Get(cacheKey); exists {
+		rawCredentialResponse = cached
+		if os.Getenv("SECRETINIT_LOG_LEVEL") == "DEBUG" {
+			fmt.Fprintf(os.Stderr, "[DEBUG] Git credential cache hit\n")
+		}
+	} else {
+		if os.Getenv("SECRETINIT_LOG_LEVEL") == "DEBUG" {
+			fmt.Fprintf(os.Stderr, "[DEBUG] Git credential cache miss, calling git credential helper\n")
+		}
+		// Cache miss - retrieve from git credential helper
+		// For git, we need to extract username from resource if present
+		cleanURL, username := parser.ParseGitURL(resource)
+		if os.Getenv("SECRETINIT_LOG_LEVEL") == "DEBUG" {
+			fmt.Fprintf(os.Stderr, "[DEBUG] Parsed URL: %s, username: %s\n", cleanURL, username)
+		}
+		rawCredentialResponse, err = getCredential(cleanURL, username)
+		if err != nil {
+			return "", fmt.Errorf("failed to retrieve git credential for %s: %w", cleanURL, err)
+		}
+
+		if os.Getenv("SECRETINIT_LOG_LEVEL") == "DEBUG" {
+			fmt.Fprintf(os.Stderr, "[DEBUG] Git credential retrieved successfully\n")
+		}
+		// Cache the raw git credential response directly
+		cache.Set(cacheKey, rawCredentialResponse)
 	}
-	return "", fmt.Errorf("invalid key path for git backend: %s. Expected 'username' or 'password'", keyPath)
+
+	// Apply keyPath parsing to the raw credential response (same pattern as AWS)
+	return parseGitCredential(rawCredentialResponse, keyPath)
 }
 
-// getCredential retrieves credentials for a given URL and optional username using git credential fill.
-func getCredential(url, user string) (string, string, error) {
+// parseGitCredential parses git credential response and returns the requested part
+// This is equivalent to extractJSONKey for AWS backend
+func parseGitCredential(credentialResponse, keyPath string) (string, error) {
+	if os.Getenv("SECRETINIT_LOG_LEVEL") == "DEBUG" {
+		fmt.Fprintf(os.Stderr, "[DEBUG] Parsing git credential for keyPath: %s\n", keyPath)
+	}
+
+	// Parse the git credential format: "key=value\n" lines
+	for _, line := range strings.Split(credentialResponse, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		parts := strings.SplitN(line, "=", 2) // Only split on first =, rest is value
+		if len(parts) != 2 {
+			continue
+		}
+
+		key, value := parts[0], parts[1]
+		if key == keyPath {
+			if os.Getenv("SECRETINIT_LOG_LEVEL") == "DEBUG" {
+				fmt.Fprintf(os.Stderr, "[DEBUG] Found requested key '%s'\n", keyPath)
+			}
+			return value, nil
+		}
+	}
+
+	if os.Getenv("SECRETINIT_LOG_LEVEL") == "DEBUG" {
+		fmt.Fprintf(os.Stderr, "[DEBUG] Key '%s' not found in git credential response\n", keyPath)
+	}
+	return "", fmt.Errorf("key '%s' not found in git credential response", keyPath)
+}
+
+// getCredential retrieves raw credentials from git credential fill.
+func getCredential(url, user string) (string, error) {
 	input := fmt.Sprintf("url=%s\n", url)
 	if user != "" {
 		input += fmt.Sprintf("username=%s\n", user)
@@ -46,20 +105,10 @@ func getCredential(url, user string) (string, string, error) {
 	cmd.Stdin = strings.NewReader(input)
 	output, err := cmd.Output()
 	if err != nil {
-		return "", "", fmt.Errorf("git credential fill failed: %w", err)
+		return "", fmt.Errorf("git credential fill failed: %w", err)
 	}
 
-	var username, password string
-	for _, line := range strings.Split(string(output), "\n") {
-		if strings.HasPrefix(line, "username=") {
-			username = strings.TrimPrefix(line, "username=")
-		}
-		if strings.HasPrefix(line, "password=") {
-			password = strings.TrimPrefix(line, "password=")
-		}
-	}
-
-	return username, password, nil
+	return string(output), nil
 }
 
 // StoreCredential stores credentials using git credential helper

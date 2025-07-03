@@ -24,6 +24,24 @@ func (p *SecretProcessor) RegisterBackend(backendType string, b backend.Backend)
 	p.backends[backendType] = b
 }
 
+// ClearCache clears all caches for all registered backends
+func (p *SecretProcessor) ClearCache() {
+	backend.ClearGlobalCache()
+}
+
+// GetCacheStats returns cache statistics for all backends
+func (p *SecretProcessor) GetCacheStats() map[string]int {
+	stats := make(map[string]int)
+	// Since we're using a global cache, return total cache size for all backends
+	totalSize := backend.GetGlobalCacheSize()
+	for backendType := range p.backends {
+		// We can't easily separate cache sizes by backend type with global cache
+		// So we'll show total for each backend type
+		stats[backendType] = totalSize
+	}
+	return stats
+}
+
 // ProcessSecrets processes a map of secret environment variables and returns resolved values
 func (p *SecretProcessor) ProcessSecrets(secretVars map[string]string) (map[string]string, error) {
 	resolvedSecrets := make(map[string]string)

@@ -64,8 +64,8 @@ if err != nil {
 
 #### Graceful Degradation Pattern
 ```go
-if creds := getCredential(url, user); creds != nil {
-    // Use credentials
+if credResponse, err := getCredential(url, user); err == nil {
+    // Use credential response
 } else {
     debugLog("Failed to get credentials, continuing...")
     // Continue without credentials

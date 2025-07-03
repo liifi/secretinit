@@ -7,13 +7,13 @@ if ($answer -eq "y" -or $answer -eq "Y") {
 }
 
 # Test as credential loader with mappings (command line)
-$env:M="secretinit:git:https://user@example.com"; secretinit.exe -m "A_URL=M_URL,A_USER=M_USER,A_PASS=M_PASS" pwsh -c "env | grep -i a_"
+$env:M="secretinit:git:https://user@example.com"; secretinit.exe -m "A_URL=M_URL,A_USER=M_USER,A_PASS=M_PASS" pwsh -c 'env | grep -i a_'
 
 # Test as credential loader with mappings (environment variable)
-$env:M="secretinit:git:https://user@example.com"; $env:SECRETINIT_MAPPINGS="A_URL=M_URL,A_USER=M_USER,A_PASS=M_PASS"; secretinit.exe pwsh -c "env | grep -i a_"
+$env:M="secretinit:git:https://user@example.com"; $env:SECRETINIT_MAPPINGS="A_URL=M_URL,A_USER=M_USER,A_PASS=M_PASS"; secretinit.exe pwsh -c 'env | grep -i a_'
 
 # Test as secret retriever only
-$env:TOKEN="secretinit:git:https://user@example.com:::password"; secretinit.exe pwsh -c "env | grep TOKEN"
+$env:TOKEN="secretinit:git:https://user@example.com:::password"; secretinit.exe pwsh -c 'env | grep TOKEN'
 
 # Test as secret value only
 secretinit.exe -o git:user@example.com:::password

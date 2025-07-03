@@ -86,11 +86,14 @@
 ## Low Priority
 
 ### Performance Optimizations
-- [ ] **Credential Caching**
+- [x] **Credential Caching**
   - Cache retrieved credentials within process
-  - Configurable cache duration
-  - Cache invalidation strategies
-  - Memory usage optimization
+  - Cache invalidation not needed, but may be needed later when secret change notification due to rotation is done
+  - Memory usage optimization?
+  - Added SHA256-based cache key generation for secure and efficient lookups
+  - Implemented thread-safe caching with read/write locks
+  - Added `--no-cache` CLI flag to disable caching when needed
+  - Cache management methods for clearing cache and getting statistics
 
 - [ ] **Parallel Processing**
   - Concurrent credential retrieval

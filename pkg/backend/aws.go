@@ -18,7 +18,7 @@ type AWSBackend struct {
 // NewAWSBackend creates a new AWSBackend using default AWS SDK configuration.
 // This uses the standard AWS SDK credential and region discovery mechanism.
 func NewAWSBackend() (*AWSBackend, error) {
-	cfg, err := config.LoadDefaultConfig(context.TODO())
+	cfg, err := config.LoadDefaultConfig(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to load AWS config: %w", err)
 	}
@@ -36,19 +36,47 @@ func NewAWSBackend() (*AWSBackend, error) {
 // The resource can be either a simple name or a full ARN for Secrets Manager, or parameter name/path for Parameter Store.
 // The keyPath is optional and used for JSON key extraction from the secret value.
 func (b *AWSBackend) RetrieveSecret(service, resource, keyPath string) (string, error) {
-	switch service {
-	case "sm":
-		return b.retrieveFromSecretsManager(resource, keyPath)
-	case "ps":
-		return b.retrieveFromParameterStore(resource, keyPath)
-	default:
-		return "", fmt.Errorf("unsupported AWS service '%s'. Supported services: 'sm' (Secrets Manager), 'ps' (Parameter Store)", service)
+	cache := GetGlobalCache()
+
+	// Create cache key for the raw secret (without keyPath since that's just parsing)
+	cacheKey := fmt.Sprintf("aws:%s:%s", service, resource)
+
+	// Check if we have cached the raw secret value
+	var rawSecretValue string
+	if cached, exists := cache.Get(cacheKey); exists {
+		rawSecretValue = cached
+	} else {
+		// Cache miss - retrieve from AWS
+		var err error
+		switch service {
+		case "sm":
+			rawSecretValue, err = b.retrieveFromSecretsManager(resource)
+		case "ps":
+			rawSecretValue, err = b.retrieveFromParameterStore(resource)
+		default:
+			return "", fmt.Errorf("unsupported AWS service '%s'. Supported services: 'sm' (Secrets Manager), 'ps' (Parameter Store)", service)
+		}
+
+		if err != nil {
+			return "", err
+		}
+
+		// Cache the raw secret value
+		cache.Set(cacheKey, rawSecretValue)
 	}
+
+	// Apply keyPath parsing to the raw value
+	if keyPath == "" {
+		return rawSecretValue, nil
+	}
+
+	// Try to parse as JSON and extract the specified key
+	return extractJSONKey(rawSecretValue, keyPath)
 }
 
 // retrieveFromSecretsManager retrieves a secret from AWS Secrets Manager.
-func (b *AWSBackend) retrieveFromSecretsManager(resource, keyPath string) (string, error) {
-	ctx := context.TODO()
+func (b *AWSBackend) retrieveFromSecretsManager(resource string) (string, error) {
+	ctx := context.Background()
 
 	input := &secretsmanager.GetSecretValueInput{
 		SecretId: &resource,
@@ -69,18 +97,12 @@ func (b *AWSBackend) retrieveFromSecretsManager(resource, keyPath string) (strin
 		return "", fmt.Errorf("no secret value found for resource '%s'", resource)
 	}
 
-	// If no keyPath is specified, return the raw secret value
-	if keyPath == "" {
-		return secretValue, nil
-	}
-
-	// Try to parse as JSON and extract the specified key
-	return extractJSONKey(secretValue, keyPath)
+	return secretValue, nil
 }
 
 // retrieveFromParameterStore retrieves a parameter from AWS Systems Manager Parameter Store.
-func (b *AWSBackend) retrieveFromParameterStore(resource, keyPath string) (string, error) {
-	ctx := context.TODO()
+func (b *AWSBackend) retrieveFromParameterStore(resource string) (string, error) {
+	ctx := context.Background()
 
 	input := &ssm.GetParameterInput{
 		Name:           &resource,
@@ -97,12 +119,5 @@ func (b *AWSBackend) retrieveFromParameterStore(resource, keyPath string) (strin
 	}
 
 	paramValue := *result.Parameter.Value
-
-	// If no keyPath is specified, return the raw parameter value
-	if keyPath == "" {
-		return paramValue, nil
-	}
-
-	// Try to parse as JSON and extract the specified key
-	return extractJSONKey(paramValue, keyPath)
+	return paramValue, nil
 }
