@@ -140,9 +140,55 @@ builds:
       - -buildmode=exe
 
 archives:
-  - id: main
+  # Full variant archive
+  - id: full
+    ids: [main]
     formats: [ tar.gz, binary ]
     name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [ zip, binary ]
+    files:
+      - none* # No additional files to include in the archive.
+  
+  # Git-only variant archive
+  - id: git-only
+    ids: [git-only]
+    formats: [ tar.gz, binary ]
+    name_template: "{{ .ProjectName }}-git_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [ zip, binary ]
+    files:
+      - none* # No additional files to include in the archive.
+  
+  # AWS-only variant archive
+  - id: aws-only
+    ids: [aws-only]
+    formats: [ tar.gz, binary ]
+    name_template: "{{ .ProjectName }}-aws_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [ zip, binary ]
+    files:
+      - none* # No additional files to include in the archive.
+  
+  # GCP-only variant archive
+  - id: gcp-only
+    ids: [gcp-only]
+    formats: [ tar.gz, binary ]
+    name_template: "{{ .ProjectName }}-gcp_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [ zip, binary ]
+    files:
+      - none* # No additional files to include in the archive.
+  
+  # Azure-only variant archive
+  - id: azure-only
+    ids: [azure-only]
+    formats: [ tar.gz, binary ]
+    name_template: "{{ .ProjectName }}-azure_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
         formats: [ zip, binary ]

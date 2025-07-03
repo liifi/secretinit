@@ -60,6 +60,14 @@ sudo mv secretinit /usr/local/bin/
 
 [![Packaging status](https://repology.org/badge/vertical-allrepos/secretinit.svg)](https://repology.org/project/secretinit/versions)
 
+```bash
+# Windows (Scoop)
+scoop install secretinit
+
+# Cross-platform (Pixi - modern package manager)
+pixi add secretinit
+```
+
 Check [Repology](https://repology.org/project/secretinit/versions) for the latest packaging status across distributions.
 
 ### From Source
