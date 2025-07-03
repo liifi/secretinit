@@ -37,7 +37,6 @@ builds:
     ldflags:
       - -s -w -X main.version={{.Version}}  # Strip symbols and debug info
       - -extldflags=-static                  # Static linking for Linux
-      - -buildmode=exe                       # Optimize for executable
 
   # Git-only build (minimal, no cloud SDKs - significantly smaller)
   - id: git-only
@@ -62,7 +61,6 @@ builds:
     ldflags:
       - -s -w -X main.version={{.Version}}
       - -extldflags=-static
-      - -buildmode=exe
 
   # AWS-only build (git + AWS, excludes GCP and Azure SDKs)
   - id: aws-only
@@ -87,7 +85,6 @@ builds:
     ldflags:
       - -s -w -X main.version={{.Version}}
       - -extldflags=-static
-      - -buildmode=exe
 
   # GCP-only build (git + GCP, excludes AWS and Azure SDKs)
   - id: gcp-only
@@ -112,7 +109,6 @@ builds:
     ldflags:
       - -s -w -X main.version={{.Version}}
       - -extldflags=-static
-      - -buildmode=exe
 
   # Azure-only build (git + Azure, excludes AWS and GCP SDKs)
   - id: azure-only
@@ -137,7 +133,6 @@ builds:
     ldflags:
       - -s -w -X main.version={{.Version}}
       - -extldflags=-static
-      - -buildmode=exe
 
 archives:
   # Full variant archive

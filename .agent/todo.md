@@ -101,6 +101,13 @@
   - Rate limiting for backends
   - Connection pooling
 
+- [ ] **Corporate and Operating System Root Certificates**
+  - Ensure backend connections trust OS root certificates by default
+  - Add support for custom corporate root CAs
+  - Document how to configure additional trusted certificates
+  - Test backend connectivity in environments with custom root CAs
+  - Provide troubleshooting guidance for certificate errors
+
 - [x] **Separate Backend-Focused Builds of secretinit**
   - Provide alternate builds targeting individual backends (AWS, GCP, Azure, etc.)
   - Enable users to select a slimmer binary with only required backend support
