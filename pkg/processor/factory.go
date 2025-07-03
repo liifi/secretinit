@@ -3,8 +3,6 @@ package processor
 import (
 	"fmt"
 	"strings"
-
-	"github.com/liifi/secretinit/pkg/backend"
 )
 
 // NewProcessorForSecrets creates a processor with only the backends needed for the given secrets
@@ -19,17 +17,13 @@ func NewProcessorForSecrets(secrets map[string]string) (*SecretProcessor, error)
 func NewProcessorWithBackends(backendNames []string) (*SecretProcessor, error) {
 	proc := NewSecretProcessor()
 
-	backendFactories := map[string]func() (backend.Backend, error){
-		"git":   func() (backend.Backend, error) { return &backend.GitBackend{}, nil },
-		"aws":   func() (backend.Backend, error) { return backend.NewAWSBackend() },
-		"gcp":   func() (backend.Backend, error) { return backend.NewGCPBackend() },
-		"azure": func() (backend.Backend, error) { return backend.NewAzureBackend() },
-	}
+	// Get available backends based on build tags
+	backendFactories := RegisterAllBackends()
 
 	for _, name := range backendNames {
 		factory, exists := backendFactories[name]
 		if !exists {
-			return nil, fmt.Errorf("unknown backend: %s", name)
+			return nil, fmt.Errorf("backend not available in this build: %s", name)
 		}
 
 		backend, err := factory()

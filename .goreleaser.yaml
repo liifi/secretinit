@@ -8,12 +8,43 @@ before:
     - go generate ./...
 
 builds:
+  # Full build with all backends (default)
   - id: main
-    # binary: secretinit
+    binary: secretinit
     main: ./cmd/secretinit/
-    # main: .
     flags:
-      - -trimpath # It will make the build slower
+      - -trimpath # Remove absolute paths for smaller binaries and reproducible builds
+    env:
+      - CGO_ENABLED=0 # Pure Go builds for better portability and smaller size
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    # For maximum tree shaking and smallest binaries
+    tags:
+      - netgo    # Pure Go networking (no libc dependencies)
+      - osuser   # Pure Go user lookups  
+      - osusergo # Additional user lookup optimizations
+    # 'ldflags' are passed to the Go linker.
+    # -s: Omit the symbol table.
+    # -w: Omit the DWARF debugging information.
+    # -X: Inject version variables at build time.
+    # --extldflags '-static': Statically link any external libraries (important with CGO).
+    #                        While redundant with CGO_ENABLED=0, it's a good safeguard.
+    ldflags:
+      - -s -w -X main.version={{.Version}}  # Strip symbols and debug info
+      - -extldflags=-static                  # Static linking for Linux
+      - -buildmode=exe                       # Optimize for executable
+
+  # Git-only build (minimal, no cloud SDKs - significantly smaller)
+  - id: git-only
+    binary: secretinit-git
+    main: ./cmd/secretinit/
+    flags:
+      - -trimpath
     env:
       - CGO_ENABLED=0
     goos:
@@ -23,23 +54,90 @@ builds:
     goarch:
       - amd64
       - arm64
-    # --- BEST PRACTICE FOR FULLY STATIC BUILDS ---
-    # The 'tags' field instructs the Go compiler to use pure Go implementations
-    # for network lookups ('netgo') and user/group lookups ('osuser').
-    # This is crucial for creating a zero-dependency Linux binary.
     tags:
       - netgo
       - osuser
-    # 'ldflags' are passed to the Go linker.
-    # -s: Omit the symbol table.
-    # -w: Omit the DWARF debugging information.
-    # -X: Inject version variables at build time.
-    # --extldflags '-static': Statically link any external libraries (important with CGO).
-    #                        While redundant with CGO_ENABLED=0, it's a good safeguard.
+      - osusergo
+      - git_only  # Custom build tag to exclude cloud backends
     ldflags:
-      # - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
       - -s -w -X main.version={{.Version}}
-      - --extldflags '-static'
+      - -extldflags=-static
+      - -buildmode=exe
+
+  # AWS-only build (git + AWS, excludes GCP and Azure SDKs)
+  - id: aws-only
+    binary: secretinit-aws
+    main: ./cmd/secretinit/
+    flags:
+      - -trimpath
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    tags:
+      - netgo
+      - osuser
+      - osusergo
+      - aws_only  # Custom build tag
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+      - -extldflags=-static
+      - -buildmode=exe
+
+  # GCP-only build (git + GCP, excludes AWS and Azure SDKs)
+  - id: gcp-only
+    binary: secretinit-gcp
+    main: ./cmd/secretinit/
+    flags:
+      - -trimpath
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    tags:
+      - netgo
+      - osuser
+      - osusergo
+      - gcp_only  # Custom build tag
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+      - -extldflags=-static
+      - -buildmode=exe
+
+  # Azure-only build (git + Azure, excludes AWS and GCP SDKs)
+  - id: azure-only
+    binary: secretinit-azure
+    main: ./cmd/secretinit/
+    flags:
+      - -trimpath
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    tags:
+      - netgo
+      - osuser
+      - osusergo
+      - azure_only  # Custom build tag
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+      - -extldflags=-static
+      - -buildmode=exe
 
 archives:
   - id: main

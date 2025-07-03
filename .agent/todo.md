@@ -101,7 +101,7 @@
   - Rate limiting for backends
   - Connection pooling
 
-- [ ] **Separate Backend-Focused Builds of secretinit**
+- [x] **Separate Backend-Focused Builds of secretinit**
   - Provide alternate builds targeting individual backends (AWS, GCP, Azure, etc.)
   - Enable users to select a slimmer binary with only required backend support
   - Reduce binary size and attack surface for enhanced security
