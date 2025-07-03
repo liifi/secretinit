@@ -37,6 +37,49 @@ secretinit myapp
 
 `secretinit` fetches the real secret and launches your app with the actual value.
 
+## Installation
+
+### Pre-built Binaries
+
+Download the latest release from [GitHub Releases](https://github.com/liifi/secretinit/releases):
+
+```bash
+# Download the appropriate binary for your platform:
+# - secretinit_linux_amd64.tar.gz (full version)
+# - secretinit-git_linux_amd64.tar.gz (git-only, smallest)
+# - secretinit-aws_linux_amd64.tar.gz (git + AWS)
+# - secretinit-gcp_linux_amd64.tar.gz (git + GCP)
+# - secretinit-azure_linux_amd64.tar.gz (git + Azure)
+
+# Linux/macOS example:
+curl -L https://github.com/liifi/secretinit/releases/latest/download/secretinit_linux_amd64.tar.gz | tar xz
+sudo mv secretinit /usr/local/bin/
+```
+
+### Package Managers
+
+[![Packaging status](https://repology.org/badge/vertical-allrepos/secretinit.svg)](https://repology.org/project/secretinit/versions)
+
+Check [Repology](https://repology.org/project/secretinit/versions) for the latest packaging status across distributions.
+
+### From Source
+
+```bash
+go install github.com/liifi/secretinit/cmd/secretinit@latest
+```
+
+### Specialized Builds
+
+Choose the minimal build for your use case:
+
+| Build | Size | Backends | Use Case |
+|-------|------|----------|----------|
+| `secretinit` | 26MB | Git + AWS + GCP + Azure | All cloud providers |
+| `secretinit-git` | 14MB | Git only | Simple credential storage |
+| `secretinit-aws` | 23MB | Git + AWS | AWS environments |
+| `secretinit-gcp` | 16MB | Git + GCP | Google Cloud environments |
+| `secretinit-azure` | 16MB | Git + Azure | Azure environments |
+
 ## Secret Address Format
 
 ```
