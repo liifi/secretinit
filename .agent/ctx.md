@@ -79,7 +79,7 @@ export VAR_NAME="secretinit:backend:service:resource:::keyPath"
 export API_TOKEN="secretinit:git:https://api.example.com:::password"
 export API_USER="secretinit:git:https://api.example.com:::username"
 
-# Multi-credential mode (creates API_URL, API_USER, API_PASS)
+# Multi-credential mode (creates API_URL, API_USER, API_PASS - original variable removed)
 export API="secretinit:git:https://api.example.com"
 export DATABASE="secretinit:git:https://database.example.com"
 ```

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/liifi/secretinit/pkg/backend"
 	"github.com/liifi/secretinit/pkg/env"
@@ -190,7 +191,21 @@ func main() {
 	}
 
 	// Prepare the environment for the new process
-	newEnv := os.Environ() // Start with the current environment
+	newEnv := []string{} // Start with empty environment
+
+	// Copy current environment, excluding processed secret variables
+	// This is important for git multi-credential mode: prevents leaving original
+	// "secretinit:git:..." variables behind when they expand to multiple *_URL, *_USER, *_PASS vars
+	for _, envVar := range os.Environ() {
+		parts := strings.SplitN(envVar, "=", 2)
+		if len(parts) == 2 {
+			varName := parts[0]
+			// Skip variables that were processed (have secretinit: prefix)
+			if _, wasProcessed := secretEnvVars[varName]; !wasProcessed {
+				newEnv = append(newEnv, envVar)
+			}
+		}
+	}
 
 	// Add resolved secrets to environment
 	for key, value := range retrievedSecrets {

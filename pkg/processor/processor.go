@@ -67,8 +67,7 @@ func (p *SecretProcessor) ProcessSecrets(secretVars map[string]string) (map[stri
 		// Handle git backend multi-credential expansion when no keyPath is specified
 		if secretSource.Backend == "git" && secretSource.KeyPath == "" {
 			// Multi-credential mode: create _URL, _USER, _PASS variables
-			// Keep original variable unchanged with secretinit: prefix
-			resolvedSecrets[varName] = "secretinit:" + secretAddress
+			// Don't keep the original variable with secretinit: prefix
 
 			// Retrieve both username and password
 			username, err := backend.RetrieveSecret(secretSource.Service, secretSource.Resource, "username")

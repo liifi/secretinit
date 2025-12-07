@@ -285,3 +285,93 @@ func TestProcessSingleSecret_GitSpecialHandling(t *testing.T) {
 		})
 	}
 }
+
+// TestGitMultiCredentialMode_OriginalVariableNotLeftBehind tests that the original variable
+// with secretinit: prefix is not included in the resolved secrets for git multi-credential mode
+func TestGitMultiCredentialMode_OriginalVariableNotLeftBehind(t *testing.T) {
+	// Create a processor with mock git backend
+	proc := NewSecretProcessor()
+	mockGit := &MockGitBackend{
+		username: "testuser",
+		password: "testpass123",
+	}
+	proc.RegisterBackend("git", mockGit)
+
+	tests := []struct {
+		name            string
+		secretVars      map[string]string
+		expectedKeys    []string
+		notExpectedKeys []string
+	}{
+		{
+			name: "Git multi-credential mode - original variable not left behind",
+			secretVars: map[string]string{
+				"API": "git:https://api.example.com", // No keyPath = multi-credential mode
+			},
+			expectedKeys:    []string{"API_URL", "API_USER", "API_PASS"},
+			notExpectedKeys: []string{"API"}, // Original should NOT be present
+		},
+		{
+			name: "Git single credential mode - original variable gets replaced",
+			secretVars: map[string]string{
+				"TOKEN": "git:https://api.example.com:::password", // With keyPath = single credential mode
+			},
+			expectedKeys:    []string{"TOKEN"},                                 // Original gets replaced with value
+			notExpectedKeys: []string{"TOKEN_URL", "TOKEN_USER", "TOKEN_PASS"}, // Multi vars should NOT be present
+		},
+		{
+			name: "Multiple git multi-credential variables",
+			secretVars: map[string]string{
+				"API": "git:https://api.example.com",
+				"DB":  "git:https://database.example.com",
+			},
+			expectedKeys:    []string{"API_URL", "API_USER", "API_PASS", "DB_URL", "DB_USER", "DB_PASS"},
+			notExpectedKeys: []string{"API", "DB"}, // Originals should NOT be present
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resolvedSecrets, err := proc.ProcessSecrets(tt.secretVars)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			// Check that expected keys are present
+			for _, expectedKey := range tt.expectedKeys {
+				if _, exists := resolvedSecrets[expectedKey]; !exists {
+					t.Errorf("Expected key '%s' to be present in resolved secrets", expectedKey)
+				}
+			}
+
+			// Check that unexpected keys are NOT present
+			for _, notExpectedKey := range tt.notExpectedKeys {
+				if _, exists := resolvedSecrets[notExpectedKey]; exists {
+					t.Errorf("Expected key '%s' to NOT be present in resolved secrets, but found value: %s",
+						notExpectedKey, resolvedSecrets[notExpectedKey])
+				}
+			}
+
+			// For git multi-credential mode, verify the values are correct
+			if _, exists := tt.secretVars["API"]; exists && !strings.Contains(tt.secretVars["API"], ":::") {
+				// This is git multi-credential mode for API variable
+				if resolvedSecrets["API_URL"] != "https://api.example.com" {
+					t.Errorf("Expected API_URL to be 'https://api.example.com', got '%s'", resolvedSecrets["API_URL"])
+				}
+				if resolvedSecrets["API_USER"] != "testuser" {
+					t.Errorf("Expected API_USER to be 'testuser', got '%s'", resolvedSecrets["API_USER"])
+				}
+				if resolvedSecrets["API_PASS"] != "testpass123" {
+					t.Errorf("Expected API_PASS to be 'testpass123', got '%s'", resolvedSecrets["API_PASS"])
+				}
+			}
+
+			// For git single credential mode, verify the value is correct
+			if _, exists := tt.secretVars["TOKEN"]; exists && strings.Contains(tt.secretVars["TOKEN"], ":::password") {
+				if resolvedSecrets["TOKEN"] != "testpass123" {
+					t.Errorf("Expected TOKEN to be 'testpass123', got '%s'", resolvedSecrets["TOKEN"])
+				}
+			}
+		})
+	}
+}

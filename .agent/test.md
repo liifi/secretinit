@@ -395,10 +395,10 @@ export TEST_SECRET="secretinit:git:https://api.example.com:::password"
 {
     input:   "MYAPP=secretinit:git:https://api.example.com",
     expected: {
-        "MYAPP":      "secretinit:git:https://api.example.com", // Original preserved
         "MYAPP_URL":  "https://api.example.com",               // Clean URL
         "MYAPP_USER": "testuser",                              // From git
         "MYAPP_PASS": "testpass",                              // From git
+        // Note: Original MYAPP variable is NOT preserved
     },
 }
 

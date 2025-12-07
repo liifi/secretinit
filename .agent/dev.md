@@ -282,7 +282,8 @@ The unified processor now handles git multi-credential logic automatically:
 ### Implementation
 ```go
 // Multi-credential mode: MYAPP=secretinit:git:https://api.example.com
-// Creates: MYAPP (original), MYAPP_URL (clean URL), MYAPP_USER, MYAPP_PASS
+// Creates: MYAPP_URL (clean URL), MYAPP_USER, MYAPP_PASS
+// Note: Original MYAPP variable is NOT preserved
 
 // Single credential mode: API_TOKEN=secretinit:git:https://api.example.com:::password  
 // Creates: API_TOKEN=<password_value>
@@ -290,7 +291,7 @@ The unified processor now handles git multi-credential logic automatically:
 
 ### Variable Creation Logic
 1. **Multi-credential mode** (no keyPath):
-   - Keep original variable with `secretinit:` prefix
+   - Remove original variable (do NOT keep `secretinit:` prefix)
    - Create `{VAR}_URL` with clean URL (username removed)
    - Create `{VAR}_USER` with retrieved username
    - Create `{VAR}_PASS` with retrieved password
